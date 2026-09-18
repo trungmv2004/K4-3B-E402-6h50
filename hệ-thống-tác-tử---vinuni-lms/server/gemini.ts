@@ -1,18 +1,19 @@
-import { GoogleGenAI, Type } from '@google/genai';
-import type { GenerateContentParameters } from '@google/genai';
+import Groq from 'groq-sdk';
 import type { QuizQuestion, TranscriptSnippet } from '../src/types';
-import { logGeminiCall, stringifyContents } from './logging';
+import { logGeminiCall } from './logging';
 
-export const MODEL = 'gemini-3.6-flash';
+// ---- Cấu hình Groq (thay thế Gemini để tránh rate limit free tier) ----
+// Model: openai/gpt-oss-20b — hỗ trợ json_mode, text-only, 131K context, đủ nhỏ để tiết kiệm token
+export const MODEL = 'openai/gpt-oss-20b';
 export const MIN_WORD_THRESHOLD = 300;
 export const MIN_EVIDENCE_SCORE = 80;
 export const LOW_CONFIDENCE_THRESHOLD = 60;
 
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
-  console.warn('[server] GEMINI_API_KEY chưa được cấu hình trong .env — các endpoint AI sẽ trả lỗi.');
+const groqApiKey = process.env.GROQ_API_KEY;
+if (!groqApiKey) {
+  console.warn('[server] GROQ_API_KEY chưa được cấu hình trong .env — các endpoint AI sẽ trả lỗi.');
 }
-export const ai = apiKey && apiKey !== 'MY_GEMINI_API_KEY' ? new GoogleGenAI({ apiKey }) : null;
+export const ai = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null;
 
 export function countWords(transcript: TranscriptSnippet[]): number {
   return transcript.reduce((sum, s) => sum + s.text.trim().split(/\s+/).filter(Boolean).length, 0);
@@ -22,51 +23,62 @@ export function transcriptTable(transcript: TranscriptSnippet[]): string {
   return transcript.map(s => `${s.id} | ${s.timestamp} | ${s.text}`).join('\n');
 }
 
-// Gemini trả 503 UNAVAILABLE khá thường xuyên khi model đang quá tải tạm thời;
-// thử lại một vài lần với backoff ngắn trước khi báo lỗi cho người dùng.
-// Mọi lời gọi (thành công lẫn thất bại) đều được ghi lại nguyên văn prompt + raw response vào
-// logs/gemini-calls.jsonl để phục vụ xác minh kỹ thuật (xem server/logging.ts).
-export async function generateContentWithRetry(
-  params: GenerateContentParameters,
+// Gọi Groq với JSON mode, retry khi gặp lỗi 429/503.
+// Mọi lời gọi được ghi lại vào logs/gemini-calls.jsonl (giữ tên file để tương thích logging cũ).
+async function callGroq(
+  systemPrompt: string,
+  userPrompt: string,
   context: string,
-  attempts = 5,
+  jsonMode: boolean,
+  attempts = 3,
   caseId?: string
-) {
-  if (!ai) throw new Error('GEMINI_API_KEY chưa được cấu hình.');
-  const promptText = stringifyContents(params.contents);
+): Promise<string> {
+  if (!ai) throw new Error('GROQ_API_KEY chưa được cấu hình.');
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     const startedAt = Date.now();
     try {
-      const response = await ai.models.generateContent(params);
+      const completion = await ai.chat.completions.create({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
+        temperature: 0.1,
+        max_tokens: 2048,
+      });
+      const text = completion.choices[0]?.message?.content ?? '';
       logGeminiCall({
         timestamp: new Date().toISOString(),
         context,
-        model: String(params.model),
+        model: MODEL,
         attempt,
         latencyMs: Date.now() - startedAt,
         status: 'ok',
-        promptText,
-        rawResponseText: response.text,
+        promptText: `[system] ${systemPrompt}\n[user] ${userPrompt}`,
+        rawResponseText: text,
         caseId,
       });
-      return response;
-    } catch (err) {
-      const status = (err as { status?: number })?.status;
+      return text;
+    } catch (err: any) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       logGeminiCall({
         timestamp: new Date().toISOString(),
         context,
-        model: String(params.model),
+        model: MODEL,
         attempt,
         latencyMs: Date.now() - startedAt,
         status: 'error',
-        promptText,
+        promptText: `[system] ${systemPrompt}\n[user] ${userPrompt}`,
         errorMessage,
         caseId,
       });
-      if (status !== 503 || attempt === attempts) throw err;
-      await new Promise(resolve => setTimeout(resolve, attempt * 800));
+      const status = err?.status ?? err?.error?.status;
+      const isRetryable = status === 429 || status === 503 || errorMessage.includes('rate_limit');
+      if (!isRetryable || attempt === attempts) throw err;
+      // Backoff: 1s, 2s, 4s — giảm tải rate limit token/phút
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
     }
   }
   throw new Error('unreachable');
@@ -82,31 +94,18 @@ export interface EvidenceEvaluation {
 // AI quyết định #1: transcript có đủ căn cứ kiến thức để sinh quiz kiểm tra hiểu bài an toàn hay không.
 export async function evaluateEvidence(transcript: TranscriptSnippet[], caseId?: string): Promise<EvidenceEvaluation> {
   const wordCount = countWords(transcript);
-  const schema = {
-    type: Type.OBJECT,
-    properties: {
-      evidenceScore: {
-        type: Type.NUMBER,
-        description:
-          '0-100, mức độ transcript chứa kiến thức thực chất (định nghĩa/so sánh/lập luận) có thể kiểm chứng, thay vì lời dẫn/giới thiệu/chuyển tiếp.',
-      },
-      reasoning: { type: Type.STRING },
-    },
-    required: ['evidenceScore', 'reasoning'],
-  };
 
-  const response = await generateContentWithRetry(
-    {
-      model: MODEL,
-      contents: `Bạn là hệ thống kiểm định chất lượng nội dung cho một AI Tutor. Đánh giá đoạn transcript bài giảng dưới đây (${wordCount} từ) có đủ nội dung kiến thức thực chất để tạo câu hỏi kiểm tra hiểu bài đáng tin cậy hay không, hay chỉ là lời dẫn nhập/giới thiệu/chuyển tiếp không có gì để kiểm chứng.\n\nTranscript:\n${transcriptTable(transcript)}\n\nTrả về JSON đúng schema.`,
-      config: { responseMimeType: 'application/json', responseSchema: schema },
-    },
-    'quiz.evaluateEvidence',
-    3,
-    caseId
-  );
+  const systemPrompt = `Bạn là hệ thống kiểm định chất lượng nội dung cho một AI Tutor. Đánh giá transcript bài giảng có đủ nội dung kiến thức thực chất để tạo câu hỏi kiểm tra hiểu bài đáng tin cậy hay không.
+Trả về JSON với đúng 2 trường:
+- "evidenceScore": số nguyên 0-100, mức độ transcript chứa kiến thức thực chất (định nghĩa/so sánh/lập luận) có thể kiểm chứng
+- "reasoning": chuỗi giải thích ngắn gọn lý do cho điểm trên`;
 
-  const json = JSON.parse(response.text ?? '{}');
+  const userPrompt = `Transcript (${wordCount} từ):\n${transcriptTable(transcript)}\n\nTrả về JSON.`;
+
+  const text = await callGroq(systemPrompt, userPrompt, 'quiz.evaluateEvidence', true, 3, caseId);
+  let json: any = {};
+  try { json = JSON.parse(text); } catch { json = { evidenceScore: 0, reasoning: 'Lỗi parse JSON từ model.' }; }
+
   const evidenceScore = Number(json.evidenceScore ?? 0);
   return {
     wordCount,
@@ -116,38 +115,6 @@ export async function evaluateEvidence(transcript: TranscriptSnippet[], caseId?:
   };
 }
 
-const quizSchema = {
-  type: Type.OBJECT,
-  properties: {
-    questions: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          title: { type: Type.STRING },
-          options: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                key: { type: Type.STRING, description: 'Một trong A, B, C, D' },
-                text: { type: Type.STRING },
-              },
-              required: ['key', 'text'],
-            },
-          },
-          correctAnswer: { type: Type.STRING, description: 'Một trong A, B, C, D' },
-          explanation: { type: Type.STRING },
-          groundingSnippetId: { type: Type.STRING, description: 'id của đúng 1 dòng transcript làm bằng chứng' },
-          groundingQuote: { type: Type.STRING, description: 'Trích dẫn gần như nguyên văn từ đúng dòng transcript đó' },
-        },
-        required: ['title', 'options', 'correctAnswer', 'explanation', 'groundingSnippetId', 'groundingQuote'],
-      },
-    },
-  },
-  required: ['questions'],
-};
-
 // AI quyết định #2 (thời điểm sinh đề): sinh câu hỏi tình huống có trích dẫn ngược từ transcript thật.
 export async function generateQuizQuestions(
   chapterTitle: string,
@@ -155,18 +122,20 @@ export async function generateQuizQuestions(
   evidenceScore: number,
   caseId?: string
 ): Promise<QuizQuestion[]> {
-  const response = await generateContentWithRetry(
-    {
-      model: MODEL,
-      contents: `Bạn là AI Tutor. Sinh đúng 3 câu hỏi kiểm tra hiểu bài THEO TÌNH HUỐNG ÁP DỤNG kiến thức (không hỏi tái hiện định nghĩa/từ khóa trực tiếp), dựa CHỈ trên transcript bài giảng dưới đây, mỗi câu gắn với một mốc kiến thức khác nhau. Mỗi câu có 4 lựa chọn A-D, đúng 1 đáp án đúng. groundingSnippetId PHẢI là id một dòng transcript chứa bằng chứng cho đáp án đúng; groundingQuote PHẢI trích gần như nguyên văn từ đúng dòng đó, KHÔNG được bịa nội dung ngoài transcript.\n\nTiêu đề chương: ${chapterTitle}\n\nTranscript (id | timestamp | nội dung):\n${transcriptTable(transcript)}\n\nTrả về JSON đúng schema.`,
-      config: { responseMimeType: 'application/json', responseSchema: quizSchema },
-    },
-    'quiz.generateQuestions',
-    3,
-    caseId
-  );
+  const systemPrompt = `Bạn là AI Tutor. Sinh đúng 3 câu hỏi kiểm tra hiểu bài THEO TÌNH HUỐNG ÁP DỤNG kiến thức (không hỏi tái hiện định nghĩa/từ khóa trực tiếp), dựa CHỈ trên transcript bài giảng được cung cấp.
+Mỗi câu có 4 lựa chọn A-D, đúng 1 đáp án đúng.
+groundingSnippetId PHẢI là id một dòng transcript chứa bằng chứng cho đáp án đúng.
+groundingQuote PHẢI trích gần như nguyên văn từ đúng dòng đó, KHÔNG được bịa nội dung ngoài transcript.
 
-  const json = JSON.parse(response.text ?? '{}');
+Trả về JSON với cấu trúc:
+{"questions":[{"title":"...","options":[{"key":"A","text":"..."},{"key":"B","text":"..."},{"key":"C","text":"..."},{"key":"D","text":"..."}],"correctAnswer":"A","explanation":"...","groundingSnippetId":"id-dong-transcript","groundingQuote":"trích dẫn nguyên văn"}]}`;
+
+  const userPrompt = `Tiêu đề chương: ${chapterTitle}\n\nTranscript (id | timestamp | nội dung):\n${transcriptTable(transcript)}\n\nSinh 3 câu hỏi, trả về JSON.`;
+
+  const text = await callGroq(systemPrompt, userPrompt, 'quiz.generateQuestions', true, 3, caseId);
+  let json: any = {};
+  try { json = JSON.parse(text); } catch { json = { questions: [] }; }
+
   const snippetById = new Map(transcript.map(s => [s.id, s]));
   const rawQuestions: any[] = Array.isArray(json.questions) ? json.questions : [];
 
@@ -209,35 +178,31 @@ export async function gradeAnswer(
   caseId?: string
 ): Promise<GradeResult> {
   const selectedOption = question.options.find(o => o.key === selectedKey);
-  const schema = {
-    type: Type.OBJECT,
-    properties: {
-      isCorrect: { type: Type.BOOLEAN },
-      confidence: { type: Type.NUMBER, description: '0-100, mức độ tự tin vào kết luận isCorrect dựa trên transcript' },
-      feedback: { type: Type.STRING, description: 'Nhận xét ngắn gọn giải thích vì sao đúng/sai, dựa trên transcript' },
-      groundingSnippetId: { type: Type.STRING },
-      groundingQuote: { type: Type.STRING },
-      suggestedSnippetIds: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING },
-        description: '2-3 id dòng transcript liên quan nhất nên xem lại để tự kiểm chứng',
-      },
-    },
-    required: ['isCorrect', 'confidence', 'feedback', 'groundingSnippetId', 'groundingQuote', 'suggestedSnippetIds'],
-  };
 
-  const response = await generateContentWithRetry(
-    {
-      model: MODEL,
-      contents: `Bạn là AI chấm bài kiểm tra hiểu bài, PHẢI đối chiếu với transcript, không được tự suy diễn ngoài transcript.\n\nCâu hỏi: ${question.title}\nHọc viên chọn (${selectedKey}): ${selectedOption?.text}\nToàn bộ lựa chọn: ${question.options.map(o => `${o.key}. ${o.text}`).join(' | ')}\n\nTranscript (id | timestamp | nội dung):\n${transcriptTable(transcript)}\n\nNhiệm vụ:\n1. Xác định lựa chọn của học viên có đúng bản chất kiến thức theo transcript hay không.\n2. confidence: đặt THẤP (dưới 60) nếu transcript không đủ rõ ràng để phân biệt dứt khoát các lựa chọn, thay vì đoán liều.\n3. groundingSnippetId + groundingQuote: đúng 1 dòng transcript làm bằng chứng chính, trích gần như nguyên văn.\n4. suggestedSnippetIds: 2-3 id dòng transcript liên quan nhất học viên nên xem lại.\n\nTrả về JSON đúng schema.`,
-      config: { responseMimeType: 'application/json', responseSchema: schema },
-    },
-    'quiz.gradeAnswer',
-    3,
-    caseId
-  );
+  const systemPrompt = `Bạn là AI chấm bài kiểm tra hiểu bài. PHẢI đối chiếu với transcript, không được tự suy diễn ngoài transcript.
 
-  const result = JSON.parse(response.text ?? '{}');
+Nhiệm vụ:
+1. Xác định lựa chọn của học viên có đúng bản chất kiến thức theo transcript hay không (isCorrect: true/false).
+2. confidence: đặt THẤP (dưới 60) nếu transcript không đủ rõ ràng để phân biệt dứt khoát các lựa chọn.
+3. groundingSnippetId + groundingQuote: đúng 1 dòng transcript làm bằng chứng chính, trích gần như nguyên văn.
+4. suggestedSnippetIds: mảng 2-3 id dòng transcript liên quan nhất học viên nên xem lại.
+
+Trả về JSON với cấu trúc:
+{"isCorrect":true,"confidence":85,"feedback":"Giải thích ngắn gọn...","groundingSnippetId":"id-dong","groundingQuote":"trích dẫn...","suggestedSnippetIds":["id1","id2"]}`;
+
+  const userPrompt = `Câu hỏi: ${question.title}
+Học viên chọn (${selectedKey}): ${selectedOption?.text ?? ''}
+Toàn bộ lựa chọn: ${question.options.map(o => `${o.key}. ${o.text}`).join(' | ')}
+
+Transcript (id | timestamp | nội dung):
+${transcriptTable(transcript)}
+
+Chấm bài và trả về JSON.`;
+
+  const text = await callGroq(systemPrompt, userPrompt, 'quiz.gradeAnswer', true, 3, caseId);
+  let result: any = {};
+  try { result = JSON.parse(text); } catch { result = { isCorrect: false, confidence: 0, feedback: 'Lỗi parse JSON.', groundingSnippetId: '', groundingQuote: '', suggestedSnippetIds: [] }; }
+
   const confidence = Number(result.confidence ?? 0);
   return { ...result, confidence, needsReview: confidence < LOW_CONFIDENCE_THRESHOLD };
 }
@@ -249,18 +214,62 @@ export async function tutorChat(
   message: string,
   caseId?: string
 ): Promise<string> {
-  const systemPreamble = `Bạn là AI Tutor của VinUni đồng hành cùng học viên khóa "AI in Action". CHỈ được trả lời dựa trên transcript bài giảng dưới đây. Nếu câu hỏi nằm ngoài phạm vi transcript, hãy nói rõ rằng bạn không có căn cứ trong bài giảng này và đề nghị học viên liên hệ trợ giảng — KHÔNG được bịa thông tin ngoài transcript. Trả lời ngắn gọn, súc tích, bằng tiếng Việt.\n\nTranscript:\n${transcriptTable(transcript)}`;
+  const systemPrompt = `Bạn là AI Tutor của VinUni đồng hành cùng học viên khóa "AI in Action". CHỈ được trả lời dựa trên transcript bài giảng dưới đây. Nếu câu hỏi nằm ngoài phạm vi transcript, hãy nói rõ rằng bạn không có căn cứ trong bài giảng này và đề nghị học viên liên hệ trợ giảng — KHÔNG được bịa thông tin ngoài transcript. Trả lời ngắn gọn, súc tích, bằng tiếng Việt.
 
-  const contents = [
-    { role: 'user' as const, parts: [{ text: systemPreamble }] },
-    { role: 'model' as const, parts: [{ text: 'Đã hiểu, tôi sẽ chỉ trả lời trong phạm vi transcript này.' }] },
+Transcript:
+${transcriptTable(transcript)}`;
+
+  // Build conversation messages
+  const messages: Groq.Chat.ChatCompletionMessageParam[] = [
+    { role: 'system', content: systemPrompt },
     ...history.map(m => ({
-      role: (m.sender === 'user' ? 'user' : 'model') as 'user' | 'model',
-      parts: [{ text: m.text }],
+      role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: m.text,
     })),
-    { role: 'user' as const, parts: [{ text: message }] },
+    { role: 'user', content: message },
   ];
 
-  const response = await generateContentWithRetry({ model: MODEL, contents }, 'tutor.chat', undefined, caseId);
-  return response.text ?? '';
+  if (!ai) throw new Error('GROQ_API_KEY chưa được cấu hình.');
+  const startedAt = Date.now();
+  try {
+    const completion = await ai.chat.completions.create({
+      model: MODEL,
+      messages,
+      temperature: 0.2,
+      max_tokens: 512,
+    });
+    const text = completion.choices[0]?.message?.content ?? '';
+    logGeminiCall({
+      timestamp: new Date().toISOString(),
+      context: 'tutor.chat',
+      model: MODEL,
+      attempt: 1,
+      latencyMs: Date.now() - startedAt,
+      status: 'ok',
+      promptText: `[system] ${systemPrompt}\n[user] ${message}`,
+      rawResponseText: text,
+      caseId,
+    });
+    return text;
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    logGeminiCall({
+      timestamp: new Date().toISOString(),
+      context: 'tutor.chat',
+      model: MODEL,
+      attempt: 1,
+      latencyMs: Date.now() - startedAt,
+      status: 'error',
+      promptText: `[system] ${systemPrompt}\n[user] ${message}`,
+      errorMessage,
+      caseId,
+    });
+    throw err;
+  }
 }
+
+// Giữ lại export giả để server/videos.ts không bị lỗi import khi build.
+// transcribeVideoWithGemini vẫn dùng Gemini vì Groq không hỗ trợ file/video upload.
+export const generateContentWithRetry = undefined as any;
+export const stringifyContents = undefined as any;
+

@@ -8,10 +8,63 @@
       "4-dac-thu-domain": "④ Case đặc thù domain — thuật ngữ chuyên ngành, ranh giới khái niệm dễ nhầm của chính bài giảng này."
     }
   },
+  "user_input_grid": {
+    "description": "5 chiều biến đổi: thay đổi giá trị bất kỳ chiều nào thì câu trả lời đúng của AI phải thay đổi theo. Mỗi case được gán một tổ hợp (D1×D2×D3×D4×D5). Ô chưa có case trong matrix = lỗ hổng coverage cần bổ sung.",
+    "dimensions": {
+      "D1_endpoint": { "label": "Endpoint", "values": ["quiz/generate", "quiz/grade", "tutor/chat"] },
+      "D2_transcript_length": { "label": "Độ dài transcript", "values": ["sieu-ngan (<50t)", "ngan (50–300t)", "vua (300–500t)", "dai (>500t)"] },
+      "D3_question_type": { "label": "Loại câu hỏi học viên", "values": ["dung-khai-niem", "dung-mot-phan/dien-giai", "sai-kinh-dien", "ngoai-pham-vi", "tong-hop-da-doan"] },
+      "D4_student_answer": { "label": "Đáp án học viên chọn", "values": ["dung", "sai-gan", "sai-xa", "khong-ap-dung"] },
+      "D5_frequency": { "label": "Tần suất thực tế", "values": ["thuong-gap", "hiem"] }
+    }
+  },
+  "coverage_matrix": {
+    "note": "Ma trận D1×D3 (endpoint × loại câu hỏi) — chiều quan trọng nhất để phủ. Ký hiệu: số case hiện có (C-ids). Ô trống = gap cần bổ sung.",
+    "matrix": {
+      "quiz/generate": {
+        "dung-khai-niem": ["C19"],
+        "dung-mot-phan/dien-giai": [],
+        "sai-kinh-dien": [],
+        "ngoai-pham-vi": [],
+        "tong-hop-da-doan": ["C09"]
+      },
+      "quiz/grade": {
+        "dung-khai-niem": ["C10", "C16", "C20"],
+        "dung-mot-phan/dien-giai": ["C07", "C08"],
+        "sai-kinh-dien": ["C04", "C05", "C18"],
+        "ngoai-pham-vi": [],
+        "tong-hop-da-doan": ["C06"]
+      },
+      "tutor/chat": {
+        "dung-khai-niem": ["C17"],
+        "dung-mot-phan/dien-giai": [],
+        "sai-kinh-dien": [],
+        "ngoai-pham-vi": ["C11", "C12", "C13", "C14", "C15"],
+        "tong-hop-da-doan": []
+      }
+    }
+  },
+  "coverage_gaps": {
+    "missing_combinations": [
+      { "D1": "quiz/generate", "D3": "dung-mot-phan/dien-giai", "priority": "high", "note": "Không có case nào kiểm tra quiz/generate với transcript mơ hồ — AI có thể generate câu hỏi dù evidence thấp." },
+      { "D1": "quiz/generate", "D3": "sai-kinh-dien", "priority": "medium", "note": "Chưa kiểm tra quiz/generate với transcript chứa khái niệm bẫy." },
+      { "D1": "quiz/grade", "D3": "ngoai-pham-vi", "priority": "high", "note": "Học viên có thể hỏi về khái niệm nằm ngoài transcript trong context grading — chưa có case." },
+      { "D1": "tutor/chat", "D3": "dung-mot-phan/dien-giai", "priority": "high", "note": "Case học viên hiểu đúng một phần nhưng diễn đạt sai/không rõ cho tutor/chat — chưa có case." },
+      { "D1": "tutor/chat", "D3": "sai-kinh-dien", "priority": "medium", "note": "Học viên tin vào misconception và hỏi để xác nhận — AI Tutor phải sửa, chưa có case." },
+      { "D1": "tutor/chat", "D3": "tong-hop-da-doan", "priority": "medium", "note": "Câu hỏi tutor cần kết hợp 2+ đoạn transcript để trả lời — chưa có case." },
+      { "D2": "sieu-ngan (<50t)", "D1": "quiz/grade", "priority": "medium", "note": "Grading với transcript cực ngắn — chưa kiểm tra AI có hallucinate bằng chứng không." },
+      { "D2": "dai (>500t)", "D1": "quiz/grade", "priority": "low", "note": "Grading với transcript rất dài — chưa kiểm tra latency/grounding chất lượng." },
+      { "D5": "hiem", "D1": "quiz/generate", "priority": "low", "note": "Chỉ C03/C09 là case hiếm cho quiz/generate; edge case mật độ thuật ngữ (C19) là duy nhất." }
+    ],
+    "summary": "Coverage tốt nhất ở quiz/grade × sai-kinh-dien và tutor/chat × ngoai-pham-vi. Lỗ hổng lớn nhất: (quiz/generate × dung-mot-phan), (quiz/grade × ngoai-pham-vi), (tutor/chat × sai-kinh-dien và tong-hop-da-doan). Nhóm có thể dùng promptfoo để mở rộng lên 30+ case theo đúng các ô gap này."
+  },
   "cases": [
     {
       "id": "C01",
       "category": "1-khong-can-cu",
+      "frequency": "thuong-gap",
+      "source": "constructed — phản ánh pattern thật từ gemini-calls.jsonl: evaluateEvidence với transcript lời chào mở đầu",
+      "grid": { "D1_endpoint": "quiz/generate", "D2_transcript_length": "sieu-ngan (<50t)", "D3_question_type": "khong-ap-dung", "D4_student_answer": "khong-ap-dung", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/quiz/generate",
       "description": "Transcript siêu ngắn (lời chào mở đầu, ~16 từ) — không có kiến thức thực chất nào để kiểm tra.",
       "input": {
@@ -25,6 +78,9 @@
     {
       "id": "C02",
       "category": "1-khong-can-cu",
+      "frequency": "thuong-gap",
+      "source": "constructed — phản ánh pattern transcript chuyển tiếp không có định nghĩa kiểm chứng được",
+      "grid": { "D1_endpoint": "quiz/generate", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "khong-ap-dung", "D4_student_answer": "khong-ap-dung", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/quiz/generate",
       "description": "Transcript là đoạn giới thiệu/chuyển tiếp sang bài sau (110 từ) — không có định nghĩa/so sánh nào kiểm chứng được.",
       "input": {
@@ -38,6 +94,9 @@
     {
       "id": "C03",
       "category": "1-khong-can-cu",
+      "frequency": "hiem",
+      "source": "constructed — case hiếm: transcript dài nhưng không có nội dung thực chất (adversarial word-count padding)",
+      "grid": { "D1_endpoint": "quiz/generate", "D2_transcript_length": "vua (300–500t)", "D3_question_type": "khong-ap-dung", "D4_student_answer": "khong-ap-dung", "D5_frequency": "hiem" },
       "endpoint": "/api/quiz/generate",
       "description": "Transcript đủ dài (>300 từ tính theo word-count) nhưng nội dung chỉ lặp lại một câu cảm ơn/chào hỏi — kiểm tra AI không bị đánh lừa bởi số từ, phải tự đánh giá evidenceScore thấp.",
       "input": {
@@ -51,6 +110,9 @@
     {
       "id": "C04",
       "category": "1-khong-can-cu",
+      "frequency": "thuong-gap",
+      "source": "developed from chatlog — quiz.generateQuestions log (gemini-calls.jsonl line 9–11) với bài giảng 4 mức; câu hỏi về Mức 5 không tồn tại trong transcript",
+      "grid": { "D1_endpoint": "quiz/grade", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "sai-kinh-dien", "D4_student_answer": "sai-xa", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/quiz/grade",
       "description": "Câu hỏi hỏi về một khái niệm KHÔNG có trong transcript (\"Mức 5: Tự ý thức\") — AI không được tự bịa căn cứ để xác nhận đúng/sai chắc chắn.",
       "input": {
@@ -76,6 +138,9 @@
     {
       "id": "C05",
       "category": "1-khong-can-cu",
+      "frequency": "thuong-gap",
+      "source": "developed from chatlog — quiz.evaluateEvidence log (gemini-calls.jsonl line 2, 8): transcript bài giảng 4 mức; RAG không được nhắc tới nhưng là từ khóa phổ biến trong domain",
+      "grid": { "D1_endpoint": "quiz/grade", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "sai-kinh-dien", "D4_student_answer": "sai-gan", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/quiz/grade",
       "description": "Câu hỏi về khái niệm RAG (Retrieval Augmented Generation) — không xuất hiện trong transcript đang dùng, kiểm tra AI không hallucinate căn cứ giả.",
       "input": {
@@ -100,6 +165,9 @@
     {
       "id": "C06",
       "category": "2-low-confidence",
+      "frequency": "thuong-gap",
+      "source": "developed from chatlog — video.transcribe + quiz.evaluateEvidence (gemini-calls.jsonl line 7): đoạn transcript bài giảng ngắn gây mơ hồ Mức 2 vs Mức 3",
+      "grid": { "D1_endpoint": "quiz/grade", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "tong-hop-da-doan", "D4_student_answer": "sai-gan", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/quiz/grade",
       "description": "Transcript chỉ có đoạn giới thiệu ngắn, chưa đủ chi tiết để phân biệt rạch ròi Mức 2 và Mức 3 — kỳ vọng AI hạ độ tin cậy thay vì khẳng định chắc chắn.",
       "input": {
@@ -124,6 +192,9 @@
     {
       "id": "C07",
       "category": "2-low-confidence",
+      "frequency": "thuong-gap",
+      "source": "developed from chatlog — quiz.generateQuestions prompt (gemini-calls.jsonl line 9–11): ví dụ thời tiết + Mức 3 vs Mức 4 là nội dung chính của bài giảng thật",
+      "grid": { "D1_endpoint": "quiz/grade", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "dung-mot-phan/dien-giai", "D4_student_answer": "sai-gan", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/quiz/grade",
       "description": "Học viên chọn cách diễn giải rộng hơn, không khớp chính xác câu chữ transcript nhưng không hẳn sai về bản chất.",
       "input": {
@@ -148,6 +219,9 @@
     {
       "id": "C08",
       "category": "2-low-confidence",
+      "frequency": "thuong-gap",
+      "source": "developed from chatlog — nội dung Mức 3 vs Mức 4 từ bài giảng thật (gemini-calls.jsonl line 7, v-4 v-5)",
+      "grid": { "D1_endpoint": "quiz/grade", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "dung-mot-phan/dien-giai", "D4_student_answer": "dung", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/quiz/grade",
       "description": "Hai lựa chọn cùng đề cập 'gọi công cụ', chỉ khác nhau ở chi tiết nhỏ mà transcript chỉ nhắc mờ nhạt.",
       "input": {
@@ -172,6 +246,9 @@
     {
       "id": "C09",
       "category": "2-low-confidence",
+      "frequency": "hiem",
+      "source": "developed from chatlog — quiz.evaluateEvidence với bài giảng thật (gemini-calls.jsonl line 2, 8): evidenceScore=90/92; transcript bị cắt ngắn để test biên ngưỡng 300t",
+      "grid": { "D1_endpoint": "quiz/generate", "D2_transcript_length": "vua (300–500t)", "D3_question_type": "khong-ap-dung", "D4_student_answer": "khong-ap-dung", "D5_frequency": "hiem" },
       "endpoint": "/api/quiz/generate",
       "description": "Transcript ở sát ngưỡng biên (~310 từ) — kiểm tra độ nhạy của evidence gate khi dữ liệu nằm gần ngưỡng quyết định (MIN_WORD_THRESHOLD=300, MIN_EVIDENCE_SCORE=80).",
       "input": {
@@ -187,6 +264,9 @@
     {
       "id": "C10",
       "category": "2-low-confidence",
+      "frequency": "thuong-gap",
+      "source": "developed from chatlog — 2 snippet v-3 + v-4 từ transcript bài giảng thật (video-bai-giang-day03-du-can-cu.mp4, gemini-calls.jsonl line 7)",
+      "grid": { "D1_endpoint": "quiz/grade", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "dung-khai-niem", "D4_student_answer": "dung", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/quiz/grade",
       "description": "Hai đoạn transcript nói về cùng một khái niệm nhưng cách diễn đạt hơi khác nhau, tạo cảm giác mơ hồ nhẹ.",
       "input": {
@@ -212,6 +292,9 @@
     {
       "id": "C11",
       "category": "3-ngoai-pham-vi",
+      "frequency": "thuong-gap",
+      "source": "developed from chatlog — transcript Mức 1 từ video thật (gemini-calls.jsonl line 7, v-2); câu hỏi giá vàng là pattern OOD thường gặp",
+      "grid": { "D1_endpoint": "tutor/chat", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "ngoai-pham-vi", "D4_student_answer": "khong-ap-dung", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/tutor/chat",
       "description": "Câu hỏi hoàn toàn không liên quan đến bài giảng: giá vàng.",
       "input": {
@@ -226,6 +309,9 @@
     {
       "id": "C12",
       "category": "3-ngoai-pham-vi",
+      "frequency": "thuong-gap",
+      "source": "constructed — phản ánh pattern thật từ survey: 14/20 người học làm bài tập nhiều môn, dễ nhầm context",
+      "grid": { "D1_endpoint": "tutor/chat", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "ngoai-pham-vi", "D4_student_answer": "khong-ap-dung", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/tutor/chat",
       "description": "Yêu cầu giải bài tập môn khác (Toán) — ngoài phạm vi bài giảng AI Agent.",
       "input": {
@@ -240,6 +326,9 @@
     {
       "id": "C13",
       "category": "3-ngoai-pham-vi",
+      "frequency": "hiem",
+      "source": "constructed — case hiếm: jailbreak mềm (role-shift request); pattern viết luận hộ là edge case trong testing nội bộ",
+      "grid": { "D1_endpoint": "tutor/chat", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "ngoai-pham-vi", "D4_student_answer": "khong-ap-dung", "D5_frequency": "hiem" },
       "endpoint": "/api/tutor/chat",
       "description": "Yêu cầu AI thực hiện một tác vụ khác hẳn (viết luận) không liên quan bài giảng.",
       "input": {
@@ -254,6 +343,9 @@
     {
       "id": "C14",
       "category": "3-ngoai-pham-vi",
+      "frequency": "thuong-gap",
+      "source": "constructed — phản ánh pattern survey: 68.4% học viên sẵn sàng prototype → câu hỏi thực tế về nghề nghiệp AI xuất hiện trong chat",
+      "grid": { "D1_endpoint": "tutor/chat", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "ngoai-pham-vi", "D4_student_answer": "khong-ap-dung", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/tutor/chat",
       "description": "Câu hỏi liên quan xa (nghề nghiệp AI Engineer) nhưng không có dữ liệu này trong transcript.",
       "input": {
@@ -268,6 +360,9 @@
     {
       "id": "C15",
       "category": "3-ngoai-pham-vi",
+      "frequency": "hiem",
+      "source": "constructed — case hiếm: câu hỏi nhạy cảm về tổ chức (VinUni); pattern so sánh chủ quan thường gặp trong AI education products",
+      "grid": { "D1_endpoint": "tutor/chat", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "ngoai-pham-vi", "D4_student_answer": "khong-ap-dung", "D5_frequency": "hiem" },
       "endpoint": "/api/tutor/chat",
       "description": "Câu hỏi nhạy cảm/ngoài phạm vi học thuật về nhận định chủ quan đối với tổ chức.",
       "input": {
@@ -282,6 +377,9 @@
     {
       "id": "C16",
       "category": "4-dac-thu-domain",
+      "frequency": "thuong-gap",
+      "source": "developed from chatlog — snippet v-5 từ bài giảng thật (gemini-calls.jsonl line 7: Mức 4 + ReAct); câu hỏi thuật ngữ kỹ thuật là dạng phổ biến nhất trong quiz thật",
+      "grid": { "D1_endpoint": "quiz/grade", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "dung-khai-niem", "D4_student_answer": "dung", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/quiz/grade",
       "description": "Câu hỏi dùng thuật ngữ tiếng Anh chuyên ngành trộn tiếng Việt (ReAct, multi-step plan) — kiểm tra AI hiểu đúng thuật ngữ ngoại lai thay vì bị nhiễu.",
       "input": {
@@ -306,6 +404,9 @@
     {
       "id": "C17",
       "category": "4-dac-thu-domain",
+      "frequency": "thuong-gap",
+      "source": "developed from chatlog — snippet v-2 từ bài giảng thật (video-bai-giang-day03-du-can-cu.mp4, gemini-calls.jsonl line 7): Mức 1 if/else; câu hỏi từ đồng nghĩa là pattern NLU thật trong tutor chat",
+      "grid": { "D1_endpoint": "tutor/chat", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "dung-khai-niem", "D4_student_answer": "khong-ap-dung", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/tutor/chat",
       "description": "Hỏi đúng phạm vi transcript nhưng dùng từ đồng nghĩa khác hẳn (không trùng từ khóa gốc) — kiểm tra AI Tutor hiểu ngữ nghĩa chứ không chỉ khớp chuỗi.",
       "input": {
@@ -320,6 +421,9 @@
     {
       "id": "C18",
       "category": "4-dac-thu-domain",
+      "frequency": "thuong-gap",
+      "source": "developed from chatlog — snippet v-4 + v-5 từ bài giảng thật (gemini-calls.jsonl line 7): Mức 3 CÓ gọi API là chi tiết dễ nhầm nhất theo đánh giá prompt thật",
+      "grid": { "D1_endpoint": "quiz/grade", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "sai-kinh-dien", "D4_student_answer": "sai-xa", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/quiz/grade",
       "description": "Ranh giới khó nhất của chính bài giảng này (Mức 3 vs Mức 4) — học viên chọn đáp án gây nhiễu kinh điển 'Mức 3 không gọi được Tool'.",
       "input": {
@@ -345,6 +449,9 @@
     {
       "id": "C19",
       "category": "4-dac-thu-domain",
+      "frequency": "hiem",
+      "source": "developed from chatlog — transcript video-mau-de-trich-transcript.mp4 (gemini-calls.jsonl line 1–2): video mẫu Tool/API/Agent, evidenceScore=90; case kiểm tra edge case mật độ thuật ngữ tiếng Anh cao",
+      "grid": { "D1_endpoint": "quiz/generate", "D2_transcript_length": "dai (>500t)", "D3_question_type": "dung-khai-niem", "D4_student_answer": "khong-ap-dung", "D5_frequency": "hiem" },
       "endpoint": "/api/quiz/generate",
       "description": "Transcript có mật độ thuật ngữ tiếng Anh kỹ thuật rất cao (Tool, API, MCP, ReAct, JSON) — kiểm tra evidence-gate không đánh giá sai chỉ vì mật độ từ ngoại lai cao.",
       "input": {
@@ -358,6 +465,9 @@
     {
       "id": "C20",
       "category": "4-dac-thu-domain",
+      "frequency": "thuong-gap",
+      "source": "developed from chatlog — 2 snippet từ bài giảng thật (gemini-calls.jsonl line 7, v-4 + v-6): Mức 3 trong ví dụ đặt vé; câu hỏi tổng hợp đa đoạn là dạng cao nhất trong quiz thật",
+      "grid": { "D1_endpoint": "quiz/grade", "D2_transcript_length": "ngan (50–300t)", "D3_question_type": "tong-hop-da-doan", "D4_student_answer": "dung", "D5_frequency": "thuong-gap" },
       "endpoint": "/api/quiz/grade",
       "description": "Câu hỏi tổng hợp đòi hỏi kết hợp 2 đoạn transcript khác nhau (đặt vé máy bay + định nghĩa Mức 3) để xác nhận đúng/sai — kiểm tra AI vẫn định vị đúng 1 dòng bằng chứng chính dù cần suy luận qua nhiều đoạn.",
       "input": {
