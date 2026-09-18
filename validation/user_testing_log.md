@@ -238,4 +238,8 @@ Tuy nhiên, quá trình thử nghiệm cũng phát hiện ba vấn đề cần �
 2. Thông báo AI Confidence chưa dễ hiểu.
 3. Cách AI xử lý câu hỏi ngoài phạm vi cần giải thích rõ hơn.
 
+<<<<<<< HEAD
 Những kết quả này sẽ được sử dụng để cải tiến prototype trước vòng validation tiếp theo.
+=======
+Những kết quả này sẽ được sử dụng để cải tiến prototype trước vòng validation tiếp theo.
+>>>>>>> cd97fb36ace676da8b8c4d8e18d69805b7a4f9e5
