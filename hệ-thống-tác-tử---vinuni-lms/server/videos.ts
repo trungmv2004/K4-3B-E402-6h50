@@ -3,10 +3,42 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 import { randomUUID } from 'crypto';
-import { Type } from '@google/genai';
-import { ai, generateContentWithRetry } from './gemini';
+import { Type, GoogleGenAI } from '@google/genai';
+import { logGeminiCall, stringifyContents } from './logging';
 import { readJsonFile, writeJsonFile } from './db';
 import type { QuizQuestion, TranscriptSnippet } from '../src/types';
+
+// videos.ts dùng Gemini trực tiếp cho tính năng upload/transcribe video.
+// Gemini là dịch vụ duy nhất hỗ trợ File API (multimodal audio/video) — Groq không hỗ trợ.
+const geminiApiKey = process.env.GEMINI_API_KEY;
+const geminiAi = geminiApiKey && geminiApiKey !== 'MY_GEMINI_API_KEY'
+  ? new GoogleGenAI({ apiKey: geminiApiKey })
+  : null;
+
+async function generateContentWithRetry(
+  params: any,
+  context: string,
+  attempts = 5,
+  caseId?: string
+) {
+  if (!geminiAi) throw new Error('GEMINI_API_KEY chưa được cấu hình.');
+  const promptText = stringifyContents(params.contents);
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const startedAt = Date.now();
+    try {
+      const response = await geminiAi.models.generateContent(params);
+      logGeminiCall({ timestamp: new Date().toISOString(), context, model: String(params.model), attempt, latencyMs: Date.now() - startedAt, status: 'ok', promptText, rawResponseText: response.text, caseId });
+      return response;
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logGeminiCall({ timestamp: new Date().toISOString(), context, model: String(params.model), attempt, latencyMs: Date.now() - startedAt, status: 'error', promptText, errorMessage, caseId });
+      if (status !== 503 || attempt === attempts) throw err;
+      await new Promise(resolve => setTimeout(resolve, attempt * 800));
+    }
+  }
+  throw new Error('unreachable');
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VIDEOS_FILE = path.resolve(__dirname, '../data/videos.json');
@@ -109,10 +141,10 @@ const transcriptSchema = {
 // để chép lại transcript thật — không dùng dịch vụ speech-to-text riêng, tận dụng đúng khả năng
 // đa phương thức (nghe video/audio) sẵn có của Gemini.
 export async function transcribeVideoWithGemini(video: VideoRecord): Promise<TranscriptSnippet[]> {
-  if (!ai) throw new Error('GEMINI_API_KEY chưa được cấu hình.');
+  if (!geminiAi) throw new Error('GEMINI_API_KEY chưa được cấu hình.');
 
   const filePath = path.join(UPLOAD_DIR, video.filename);
-  let fileInfo = await ai.files.upload({
+  let fileInfo = await geminiAi.files.upload({
     file: filePath,
     config: { mimeType: video.mimeType, displayName: video.title },
   });
@@ -122,7 +154,7 @@ export async function transcribeVideoWithGemini(video: VideoRecord): Promise<Tra
 
   for (let attempt = 0; attempt < 60 && fileInfo.state === 'PROCESSING'; attempt++) {
     await new Promise(resolve => setTimeout(resolve, 3000));
-    fileInfo = await ai.files.get({ name: fileName });
+    fileInfo = await geminiAi.files.get({ name: fileName });
   }
 
   if (fileInfo.state !== 'ACTIVE' || !fileInfo.uri || !fileInfo.mimeType) {
@@ -131,7 +163,7 @@ export async function transcribeVideoWithGemini(video: VideoRecord): Promise<Tra
 
   const response = await generateContentWithRetry(
     {
-      model: 'gemini-3.6-flash',
+      model: 'openai/gpt-oss-20b',
       contents: [
         {
           role: 'user',

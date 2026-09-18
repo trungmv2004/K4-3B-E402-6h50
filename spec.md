@@ -160,6 +160,21 @@ Loại: [ ] Tối ưu tính năng có sẵn  [x] Tính năng mới
 - **Case đặc thù domain (④):** Câu hỏi dùng thuật ngữ chuyên ngành Anh-Việt lẫn lộn hoặc rơi đúng vào ranh giới khó nhất của bài giảng (Mức 3 vs Mức 4) → AI vẫn phải chấm đúng và trích đúng bằng chứng phản biện, không bị nhiễu bởi thuật ngữ lạ hay bị đánh lừa bởi lựa chọn gây nhiễu nghe có vẻ hợp lý.
 
 ## §7. Kiểm thử
+<<<<<<< HEAD
+- **Chiều chất lượng + định nghĩa kiểm chứng được:**
+  - *Tính toàn vẹn căn cứ (Grounding Integrity)*: AI chỉ chấm đúng/xác nhận khi có trích dẫn (`groundingQuote` và `groundingSnippetId`) khớp với transcript thực tế; không hallucinate căn cứ.
+  - *Khả năng nhận diện giới hạn (Out-of-scope & Gate Rejection)*: 100% câu hỏi ngoài bài giảng phải được từ chối lịch sự và chuyển tiếp trợ giảng; transcript dưới ngưỡng chất lượng phải bị cổng chặn từ chối (`sufficientEvidence: false`).
+  - *Hiệu chuẩn độ tin cậy (Confidence Calibration)*: Trong tình huống mơ hồ hoặc thông tin chưa đủ, AI phải hạ độ tin cậy hoặc gắn cờ `needsReview: true` thay vì khẳng định chắc chắn.
+- **Golden set (≥20 case theo cơ cấu trong guide §2.6, file trong [`eval/golden_set.json`](file:///d:/DATA/IT/AIA/lab/K4-3B-E402-6h50/hệ-thống-tác-tử---vinuni-lms/eval/golden_set.json)):**
+  - Đủ 20 ca phân bổ theo 4 lớp chỗ khó (5 ca/lớp): ① Không có căn cứ (C01–C05), ② Low-confidence (C06–C10), ③ Ngoài phạm vi (C11–C15), ④ Đặc thù domain AI Agent (C16–C20).
+  - Có 10 ca phát triển từ chatlog và câu hỏi thực tế của sinh viên VinUni.
+- **Quality bar:** "Đạt khi ≥ 70% qua bộ kiểm thử (PASS), 100% ca ngoài phạm vi được từ chối an toàn, và mọi ca thất bại đều có phân tích nguyên nhân cùng kế hoạch cải tiến."
+- **Kết quả các lượt chạy (chi tiết xem tại [`eval/run_results.md`](file:///d:/DATA/IT/AIA/lab/K4-3B-E402-6h50/hệ-thống-tác-tử---vinuni-lms/eval/run_results.md)):**
+  | Lượt chạy | Ngày thực hiện | Động cơ / Model | Tổng ca | PASS | FAIL | OBSERVE | Tỷ lệ PASS | Đạt Quality Bar? |
+  |---|---|---|:---:|:---:|:---:|:---:|:---:|:---:|
+  | **Lượt 1** | 2026-09-18 | Groq API (`openai/gpt-oss-20b`) | 20 | 15 | 4 | 1 | **75.0%** | **ĐẠT (≥70%)** |
+
+=======
 
 - **Chiều chất lượng + định nghĩa kiểm chứng được** (3 chiều, khớp đúng 3 quyết định AI trung tâm của lát cắt):
 
@@ -190,6 +205,7 @@ Loại: [ ] Tối ưu tính năng có sẵn  [x] Tính năng mới
   3. **Chưa kiểm thử luồng giáo viên upload video lỗi/định dạng lạ** ngoài các case đã thử tay (video hợp lệ, file không phải video) — chưa có ca golden set riêng cho lỗi upload.
   4. **Nhóm ② Low-confidence mới có bằng chứng thật gián tiếp** (`realWorldReference` trỏ về pattern tương tự trong chatlog thật), chưa có case nào trong nhóm này được chạy PASS thật — ưu tiên chạy trước khi báo cáo lại.
   5. **Chưa đo latency/độ trễ phản hồi thật** của từng loại quyết định AI trên diện rộng (mới quan sát rời rạc qua log, chưa tổng hợp thành số liệu chính thức trong `eval/`).
+>>>>>>> 667c4295e7f8caefce12febf49fc6750efea9319
 
 ## §8. Phân công & kế hoạch
 

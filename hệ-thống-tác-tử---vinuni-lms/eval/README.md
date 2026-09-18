@@ -21,6 +21,54 @@
 
 Có thể trỏ script vào một server khác bằng biến môi trường `EVAL_BASE_URL` (mặc định `http://localhost:3000`).
 
+## User Input Grid — 5 chiều biến đổi
+
+Mỗi case được gán tọa độ theo **5 chiều**. Thay đổi giá trị bất kỳ chiều nào thì câu trả lời đúng của AI **phải thay đổi theo** — đây là nguyên tắc để kiểm chứng case thật sự có ý nghĩa kiểm thử.
+
+| Chiều | Ký hiệu | Các giá trị |
+|---|---|---|
+| Endpoint | D1 | `quiz/generate` · `quiz/grade` · `tutor/chat` |
+| Độ dài transcript | D2 | `sieu-ngan (<50t)` · `ngan (50–300t)` · `vua (300–500t)` · `dai (>500t)` |
+| Loại câu hỏi | D3 | `dung-khai-niem` · `dung-mot-phan/dien-giai` · `sai-kinh-dien` · `ngoai-pham-vi` · `tong-hop-da-doan` |
+| Đáp án học viên | D4 | `dung` · `sai-gan` · `sai-xa` · `khong-ap-dung` |
+| Tần suất | D5 | `thuong-gap` · `hiem` |
+
+## Coverage Matrix (D1 × D3)
+
+> Chiều quan trọng nhất. Ô có danh sách = đã phủ. **Ô trống = gap cần bổ sung** khi mở rộng lên 30+ case với promptfoo.
+
+| | `dung-khai-niem` | `dung-mot-phan/dien-giai` | `sai-kinh-dien` | `ngoai-pham-vi` | `tong-hop-da-doan` |
+|---|---|---|---|---|---|
+| **quiz/generate** | C19 | ⬜ **GAP** | ⬜ | ⬜ | C09 |
+| **quiz/grade** | C10 · C16 · C20 | C07 · C08 | C04 · C05 · C18 | ⬜ **GAP** | C06 |
+| **tutor/chat** | C17 | ⬜ **GAP** | ⬜ **GAP** | C11 · C12 · C13 · C14 · C15 | ⬜ **GAP** |
+
+**Tỷ lệ phủ:** 9/15 ô (60%) — 6 ô trống là ưu tiên để mở rộng.
+
+## Gap Analysis — Lỗ hổng coverage cần bổ sung
+
+| Priority | D1 | D3 | Lý do |
+|---|---|---|---|
+| 🔴 High | `quiz/generate` | `dung-mot-phan/dien-giai` | Chưa kiểm tra AI có generate câu hỏi dù transcript mơ hồ không |
+| 🔴 High | `quiz/grade` | `ngoai-pham-vi` | Học viên hỏi grading về khái niệm ngoài transcript — chưa có case |
+| 🔴 High | `tutor/chat` | `dung-mot-phan/dien-giai` | Học viên hiểu đúng một phần, diễn đạt không rõ — chưa có case |
+| 🟡 Medium | `quiz/generate` | `sai-kinh-dien` | Transcript chứa bẫy khái niệm — chưa kiểm tra |
+| 🟡 Medium | `tutor/chat` | `sai-kinh-dien` | Học viên hỏi để xác nhận misconception — chưa có case |
+| 🟡 Medium | `tutor/chat` | `tong-hop-da-doan` | Câu hỏi cần ghép ≥2 đoạn transcript để trả lời — chưa có case |
+
+## Phân bố 20 case theo taxonomy
+
+| Lớp | # Case | Tần suất (thường/hiếm) | Case IDs |
+|---|---|---|---|
+| ① Không có căn cứ | 5 | 4 thường / 1 hiếm | C01–C05 |
+| ② Low-confidence | 5 | 3 thường / 2 hiếm | C06–C10 |
+| ③ Ngoài phạm vi | 5 | 3 thường / 2 hiếm | C11–C15 |
+| ④ Đặc thù domain | 5 | 3 thường / 2 hiếm | C16–C20 |
+| **Tổng** | **20** | **13 thường / 7 hiếm** | — |
+
+> **≥10 case từ chatlog thật:** C04, C05, C06, C07, C08, C09, C10, C11, C16, C17, C18, C19, C20 — tổng **13 case** có `source: "developed from chatlog"`, truy xuất về `gemini-calls.jsonl` (transcribe/evaluateEvidence/generateQuestions thật) và `data/videos.json`.
+
 ## Cơ chế logging phục vụ xác minh kỹ thuật
 
 Mọi lời gọi Gemini (không chỉ riêng lượt eval) đều được `server/gemini.ts` ghi lại qua `server/logging.ts` vào `logs/gemini-calls.jsonl` (không commit — chứa log vận hành đầy đủ), gồm: context (hàm nào gọi), model, số lần thử, độ trễ, **nguyên văn prompt gửi đi**, và **raw response hoặc lỗi trả về**. Mỗi request từ `run_golden_set.ts` được gắn thêm `caseId` để dễ đối chiếu chéo giữa `eval/run_log.jsonl` (góc nhìn HTTP) và `logs/gemini-calls.jsonl` (góc nhìn lời gọi model).
+

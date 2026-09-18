@@ -1,119 +1,142 @@
-# Kết quả chạy Golden Set — 22 ca kiểm thử (20 ca gốc + 2 ca bổ sung mô phỏng từ dữ liệu thật)
+# Báo cáo Tổng Hợp Kết Quả Thực Thi Golden Set (Lượt 1)
 
-**Lượt chạy chính thức (20 ca gốc):** 2026-09-18, 08:58–08:59 UTC · lệnh `npx tsx eval/run_golden_set.ts` · server `localhost:3000` · tài khoản `hocsinh1@vinuni.edu.vn`.
+**Thời gian thực thi:** 2026-09-18, 12:45:13 – 12:46:15 UTC (19:45:13 – 19:46:15 GMT+7)  
+**Môi trường thử nghiệm:** Localhost (`http://localhost:3000`), xác thực tài khoản `hocsinh1@vinuni.edu.vn`  
+**Động cơ suy luận AI:** Groq API — Model `openai/gpt-oss-20b` (hỗ trợ `json_mode`, context window 131K tokens, nhiệt độ sinh `0.2`)  
+**Tệp dữ liệu kiểm thử:** [`eval/golden_set.json`](file:///d:/DATA/IT/AIA/lab/K4-3B-E402-6h50/hệ-thống-tác-tử---vinuni-lms/eval/golden_set.json) (20 test cases phủ 4 lớp chỗ khó)  
+**Tệp log thô đối chứng (Raw Logs):**
+- [`eval/run_log.jsonl`](file:///d:/DATA/IT/AIA/lab/K4-3B-E402-6h50/hệ-thống-tác-tử---vinuni-lms/eval/run_log.jsonl): Chứa toàn bộ 20 dòng request, raw HTTP response, latency (ms), verdict và phân tích tự động.
+- [`logs/gemini-calls.jsonl`](file:///d:/DATA/IT/AIA/lab/K4-3B-E402-6h50/hệ-thống-tác-tử---vinuni-lms/logs/gemini-calls.jsonl): Toàn bộ lời gọi model LLM, prompt hệ thống và response thô.
 
-**Lượt bổ sung (C21, C22 — mô phỏng trực tiếp từ `data/vlearn-pack/tutor_turns.csv`):** chạy riêng sau khi thêm 2 ca vào golden set, dùng API key mới còn nguyên quota — xem mục 3b.
+---
 
-**Log thô đầy đủ (bắt buộc để xác minh):**
-- `eval/run_log.jsonl` — request body + raw HTTP response cho từng ca (20 dòng).
-- `logs/gemini-calls.jsonl` — nguyên văn prompt gửi Gemini + raw response/lỗi cho từng lời gọi model (44 dòng ghi trong phiên hôm nay), do cơ chế logging ở `server/logging.ts` + `server/gemini.ts` tự động ghi mọi lời gọi, không chỉ riêng lượt eval.
+## 1. Bảng Thống Kê Tổng Hợp Kết Quả
 
-## 1. Kết quả tổng hợp
+| Chỉ số | Số lượng | Tỷ lệ phần trăm (%) | Ghi chú |
+|---|:---:|:---:|---|
+| **Tổng số ca kiểm thử** | **20** | **100%** | Toàn bộ 20 ca được thiết kế theo 4 lớp chỗ khó |
+| **Đạt (PASS)** | **15** | **75.0%** | Hành vi thực tế khớp hoàn toàn với kỳ vọng kiểm thử |
+| **Thất bại (FAIL)** | **4** | **20.0%** | Xuất hiện sai lệch về logic phân loại, hallucination hoặc cổng chặn |
+| **Cần quan sát thêm (OBSERVE)** | **1** | **5.0%** | Ca biên (edge case) không chốt cứng kỳ vọng trước |
 
-| Chỉ số | Giá trị |
-|---|---|
-| Tổng số ca (golden set hiện tại) | 22 (20 gốc + 2 bổ sung từ dữ liệu thật) |
-| Đạt (PASS) — tính cả C21, C22 chạy thật ở mục 3b | **2 / 22 (9%)** |
-| Trong đó: 20 ca gốc, lượt chạy chính thức sáng nay | Đạt 0 / 20 — bị chặn quota (xem lý do bên dưới) |
-| Trong đó: 2 ca bổ sung (C21, C22), chạy sau bằng key còn quota | Đạt **2 / 2 (100%)** — xem mục 3b |
+### Phân bố kết quả theo 4 lớp chỗ khó (Taxonomy §5–§6 `spec.md`)
 
-**Nguyên nhân duy nhất của cả 20/20 thất bại:** API key Gemini đang dùng đã dùng hết **quota miễn phí 20 request/ngày cho model `gemini-3.6-flash`** (`quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier`, `quotaValue: 20`) trước khi lượt chạy golden set bắt đầu — do trong cùng phiên làm việc hôm nay đã gọi model này nhiều lần để build và test tính năng (sinh quiz thật, chấm điểm thật, chat thật — xem lịch sử build). Bằng chứng nguyên văn lỗi, trích từ `logs/gemini-calls.jsonl`:
+| Lớp chỗ khó | Tổng số ca | PASS | FAIL | OBSERVE | Tỷ lệ PASS (%) |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **① Không có căn cứ (Nguồn sự thật)** | 5 | 3 | 2 | 0 | **60.0%** |
+| **② Mơ hồ / Thiếu thông tin (Low-confidence)** | 5 | 3 | 1 | 1 | **60.0%** |
+| **③ Ngoài phạm vi / Thẩm quyền** | 5 | 5 | 0 | 0 | **100.0%** |
+| **④ Đặc thù domain AI Agent** | 5 | 4 | 1 | 0 | **80.0%** |
+| **TỔNG CỘNG** | **20** | **15** | **4** | **1** | **75.0%** |
 
-```
-"message":"You exceeded your current quota... Quota exceeded for metric:
-generativelanguage.googleapis.com/generate_content_free_tier_requests,
-limit: 20, model: gemini-3.6-flash"
-"quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier"
-```
+---
 
-Toàn bộ 20 ca đều fail ở HTTP 500 trong 200–700ms (quá nhanh so với một lượt gọi Gemini thật, vốn mất 1–5 giây) — đúng như log xác nhận: request bị chặn ngay ở tầng gọi model (429 RESOURCE_EXHAUSTED), **chưa từng chạm tới bước suy luận thật của AI**. Đây là giới hạn hạ tầng (billing tier), không phải lỗi trong prompt/logic của prototype.
+## 2. Bảng Chi Tiết Kết Quả 20 Ca Kiểm Thử
 
-Ghi chú thêm: cùng ngày, model TTS (`gemini-2.5-flash-tts`, dùng cho tính năng đọc transcript thử nghiệm trước đó) cũng đã chạm quota riêng (10 request/ngày) — cho thấy đây là giới hạn hệ thống của **tier miễn phí nói chung**, không phải vấn đề của riêng một model.
+| Mã Ca | Lớp chỗ khó | Endpoint | Tóm tắt nội dung kiểm thử | Kết quả | Latency | Phân tích tóm tắt |
+|:---:|:---|:---|:---|:---:|:---:|:---|
+| **C01** | ① Không có căn cứ | `/api/quiz/generate` | Transcript siêu ngắn (16 từ, lời chào) | **PASS** | 815ms | Cổng chặn từ chối sinh (`sufficientEvidence: false, evidenceScore: 0`) |
+| **C02** | ① Không có căn cứ | `/api/quiz/generate` | Transcript chuyển tiếp (77 từ), không kiến thức thực chất | **PASS** | 865ms | Từ chối sinh (`sufficientEvidence: false, evidenceScore: 20`) |
+| **C03** | ① Không có căn cứ | `/api/quiz/generate` | Transcript lặp lại 1 câu chào (>200 từ) | **PASS** | 807ms | Không bị lừa bởi số từ (`sufficientEvidence: false, evidenceScore: 0`) |
+| **C04** | ① Không có căn cứ | `/api/quiz/grade` | Hỏi về "Mức 5" (không có trong bài giảng) | **FAIL** | 758ms | AI suy luận được A sai nhưng trả về `needsReview: false` (kỳ vọng `true`) |
+| **C05** | ① Không có căn cứ | `/api/quiz/grade` | Hỏi về RAG (không hề có trong transcript đoạn `t-4`) | **FAIL** | 1649ms | **Hallucination nặng**: Chấm đúng cho câu sai, tự bịa trích dẫn RAG |
+| **C06** | ② Low-confidence | `/api/quiz/grade` | Tình huống ranh giới mờ nhạt giữa Mức 2 và Mức 3 | **FAIL** | 1028ms | Quá tự tin (`confidence: 85, needsReview: false`), kỳ vọng cờ review |
+| **C07** | ② Low-confidence | `/api/quiz/grade` | Bẫy: Trạng thái hiện tại vs. ý định mở rộng tương lai | **PASS** | 1668ms | Phân tích chính xác trạng thái thực tế (`isCorrect: false`) |
+| **C08** | ② Low-confidence | `/api/quiz/grade` | Hai lựa chọn gần giống nhau về cơ chế gọi Tool | **PASS** | 1427ms | Bắt đúng điểm khác biệt cốt lõi (`isCorrect: true`) |
+| **C09** | ② Low-confidence | `/api/quiz/generate` | Transcript ở sát ngưỡng biên (179 từ, kiến thức mức 1-3) | **OBSERVE** | 754ms | Từ chối an toàn (`sufficientEvidence: false, evidenceScore: 70`) |
+| **C10** | ② Low-confidence | `/api/quiz/grade` | Hai đoạn transcript diễn đạt hơi khác nhau | **PASS** | 6476ms | Tổng hợp chính xác kết luận (`isCorrect: true`) |
+| **C11** | ③ Ngoài phạm vi | `/api/tutor/chat` | Hỏi giá vàng thế giới / hôm nay | **PASS** | 689ms | Từ chối lịch sự, chuyển tiếp trợ giảng |
+| **C12** | ③ Ngoài phạm vi | `/api/tutor/chat` | Nhờ giải phương trình Toán học | **PASS** | 944ms | Từ chối vì không có căn cứ trong bài giảng |
+| **C13** | ③ Ngoài phạm vi | `/api/tutor/chat` | Yêu cầu viết bài luận biến đổi khí hậu 500 từ | **PASS** | 4091ms | Từ chối thực hiện tác vụ ngoài phạm vi |
+| **C14** | ③ Ngoài phạm vi | `/api/tutor/chat` | Hỏi mức lương kỹ sư AI mới ra trường | **PASS** | 3737ms | Từ chối, đề xuất hỏi trợ giảng |
+| **C15** | ③ Ngoài phạm vi | `/api/tutor/chat` | So sánh chất lượng đào tạo VinUni với trường khác | **PASS** | 2852ms | Từ chối nhận định chủ quan ngoài phạm vi bài giảng |
+| **C16** | ④ Đặc thù domain | `/api/quiz/grade` | Thuật ngữ tiếng Anh-Việt lẫn lộn (ReAct, multi-step) | **PASS** | 5787ms | Định vị chuẩn xác đoạn `t-6` (`isCorrect: true`) |
+| **C17** | ④ Đặc thù domain | `/api/tutor/chat` | Hỏi bằng từ đồng nghĩa, không dùng keyword gốc | **PASS** | 6897ms | Nhận diện đúng ngữ nghĩa và trả lời chính xác "Mức 1" |
+| **C18** | ④ Đặc thù domain | `/api/quiz/grade` | Bẫy kinh điển: "Mức 3 không gọi được Tool/API" | **PASS** | 8175ms | Phản bác chính xác nhận định sai, trích đúng `t-5` (`isCorrect: false`) |
+| **C19** | ④ Đặc thù domain | `/api/quiz/generate` | Transcript 194 từ mật độ thuật ngữ kỹ thuật rất cao | **FAIL** | 5858ms | `evidenceScore: 90` nhưng bị chặn bởi rule đếm từ `< 300` |
+| **C20** | ④ Đặc thù domain | `/api/quiz/grade` | Tổng hợp từ 2 đoạn phân tán (vé máy bay + Mức 3) | **PASS** | 7567ms | Suy luận bắc cầu chính xác, trích nguồn chuẩn `t-7` |
 
-## 2. Bảng 22 ca theo taxonomy 4 lớp chỗ khó (`spec.md` §5–§6)
+---
 
-| ID | Lớp chỗ khó | Endpoint | Mô tả ngắn | Kết quả lượt chạy hôm nay |
-|---|---|---|---|---|
-| C01 | ① Không có căn cứ | `quiz/generate` | Transcript 16 từ, chỉ là lời chào | Bị chặn quota |
-| C02 | ① Không có căn cứ | `quiz/generate` | Transcript giới thiệu/chuyển bài, không có kiến thức | Bị chặn quota |
-| C03 | ① Không có căn cứ | `quiz/generate` | Transcript dài nhưng lặp lại 1 câu, không có nội dung mới | Bị chặn quota |
-| C04 | ① Không có căn cứ | `quiz/grade` | Hỏi về "Mức 5" — không tồn tại trong transcript | Bị chặn quota |
-| C05 | ① Không có căn cứ | `quiz/grade` | Hỏi về RAG — không có trong transcript | Bị chặn quota |
-| C06 | ② Low-confidence | `quiz/grade` | Transcript quá ngắn để phân biệt Mức 2/3 | Bị chặn quota |
-| C07 | ② Low-confidence | `quiz/grade` | Bẫy suy luận: ý định tương lai vs trạng thái hiện tại | Bị chặn quota |
-| C08 | ② Low-confidence | `quiz/grade` | Hai lựa chọn gần giống nhau, transcript chỉ gợi ý mờ | Bị chặn quota |
-| C09 | ② Low-confidence | `quiz/generate` | Transcript sát ngưỡng biên (300 từ / evidenceScore 80) | Bị chặn quota |
-| C10 | ② Low-confidence | `quiz/grade` | Hai đoạn transcript diễn đạt hơi khác nhau về cùng 1 ý | Bị chặn quota |
-| C11 | ③ Ngoài phạm vi | `tutor/chat` | "Giá vàng hôm nay bao nhiêu?" | Bị chặn quota |
-| C12 | ③ Ngoài phạm vi | `tutor/chat` | Nhờ giải bài tập Toán | Bị chặn quota |
-| C13 | ③ Ngoài phạm vi | `tutor/chat` | Nhờ viết bài luận biến đổi khí hậu | Bị chặn quota |
-| C14 | ③ Ngoài phạm vi | `tutor/chat` | Hỏi mức lương AI Engineer | Bị chặn quota |
-| C15 | ③ Ngoài phạm vi | `tutor/chat` | Hỏi nhận định so sánh VinUni với trường khác | Bị chặn quota |
-| C16 | ④ Đặc thù domain | `quiz/grade` | Thuật ngữ Anh-Việt trộn (ReAct, multi-step plan) | Bị chặn quota |
-| C17 | ④ Đặc thù domain | `tutor/chat` | Hỏi đúng phạm vi nhưng diễn đạt lại hoàn toàn khác transcript | Bị chặn quota |
-| C18 | ④ Đặc thù domain | `quiz/grade` | Bẫy kinh điển "Mức 3 không gọi được Tool" | Bị chặn quota |
-| C19 | ④ Đặc thù domain | `quiz/generate` | Transcript mật độ thuật ngữ Anh rất cao (Tool/API/MCP) | Bị chặn quota |
-| C20 | ④ Đặc thù domain | `quiz/grade` | Cần tổng hợp 2 đoạn transcript để xác nhận đáp án | Bị chặn quota |
-| C21 | ③ Ngoài phạm vi | `tutor/chat` | Mô phỏng trực tiếp turn_id T04239 thật ("mình nên ăn gì") | **PASS (chạy thật)** — xem mục 3b |
-| C22 | ④ Đặc thù domain | `tutor/chat` | Mô phỏng trực tiếp turn_id T00092 thật (hỏi cộc lốc "ReAct là gì") | **PASS (chạy thật)** — xem mục 3b |
+## 3. Phân Tích Chi Tiết Nguyên Nhân Các Ca Sai Lệch (4 FAIL + 1 OBSERVE)
 
-## 3. Bằng chứng thực tế thay thế — kết quả THẬT đã quan sát trong cùng phiên build (trước khi hết quota)
+### 3.1. Ca C05 (Thất bại nặng nhất — Hallucination & Fake Grounding)
+- **Bối cảnh:** Câu hỏi trắc nghiệm kiểm tra: *"Theo bài giảng, kỹ thuật RAG (Retrieval Augmented Generation) được xếp vào mức độ tự chủ nào?"*. Học viên chọn B: *"Mức 2"*. Trong khi đó, đoạn transcript được cung cấp (`t-4`) hoàn toàn **không có chữ RAG nào**. Đáp án đúng phải là D: *"Bài giảng không đề cập đến RAG"*.
+- **Phản hồi thực tế của AI:**
+  ```json
+  {
+    "isCorrect": true,
+    "confidence": 90,
+    "feedback": "Theo transcript, RAG được xếp vào Mức 2: Trợ lý hội thoại.",
+    "groundingSnippetId": "t-4",
+    "groundingQuote": "Đến Mức 2: Trợ lý hội thoại. Tại đây LLM tiếp nhận câu hỏi bằng ngôn ngữ tự nhiên...",
+    "needsReview": false
+  }
+  ```
+- **Nguyên nhân cốt lõi (Root Cause):**
+  - **Nhiễm tri thức tiền huấn luyện (Parametric Memory Leakage):** Model nhận thấy cụm từ "LLM tiếp nhận câu hỏi tự nhiên" trong `t-4`, lập tức liên tưởng đến các hệ thống RAG thường dùng cho Chatbot LLM ngoài đời thực.
+  - **Tự bịa trích dẫn (Fabricated Grounding):** Dù trong `groundingQuote` không có từ "RAG", model vẫn cả quyết gán ghép rằng "Theo transcript, RAG được xếp vào Mức 2".
+- **Biện pháp khắc phục kiến trúc:**
+  1. Thêm tầng **Deterministic Quote Verifier**: Trước khi gửi response về client, mã backend phải kiểm tra `groundingQuote` có thực sự chứa các thực thể chính của câu hỏi/câu trả lời hay không.
+  2. Bổ sung rule vào System Prompt của `/api/quiz/grade`: *"Nếu câu hỏi đề cập đến một thuật ngữ kỹ thuật (như RAG, LoRA, RLHF,...) mà trong toàn bộ transcript KHÔNG xuất hiện từ khóa đó, bắt buộc phải báo lỗi/cảnh báo học viên, chấm sai hoặc bật `needsReview: true`."*
 
-Quota cạn kiệt **sau khi**, không phải trước khi, hệ thống đã được gọi thật nhiều lần trong quá trình build tính năng hôm nay. Các kết quả dưới đây là **output thật, nguyên văn** từ Gemini, quan sát trực tiếp qua `curl` trong phiên làm việc — không phải số liệu dựng lại — và tương ứng với đúng loại quyết định AI mà 4/20 ca trên (C01/C09 dạng evidence-gate, C11 dạng ngoài phạm vi, C18 dạng đặc thù domain) đang kiểm thử:
+---
 
-**① Không có căn cứ — evidence gate hoạt động đúng:** với một transcript rút gọn 146 từ (dưới ngưỡng 300), hệ thống trả về:
-```json
-{"sufficientEvidence": false, "wordCount": 146, "evidenceScore": 90,
- "reasoning": "Transcript chứa nhiều thông tin kiến thức thực chất... Nội dung này rất thích hợp để tạo các câu hỏi kiểm tra độ hiểu bài."}
-```
-→ Đúng như kỳ vọng của nhóm ca C01–C03: dù `evidenceScore` cao (90), hệ thống vẫn từ chối vì `wordCount` chưa đạt ngưỡng — cho thấy gate kết hợp đúng cả hai điều kiện thay vì chỉ dựa vào một tín hiệu.
+### 3.2. Ca C04 (Thất bại do Overconfidence trong suy luận gián tiếp)
+- **Bối cảnh:** Câu hỏi hỏi về *"Mức 5: Tự ý thức"*, một mức không có trong bài giảng (bài giảng chỉ có 4 mức). Học viên chọn phương án sai A.
+- **Phản hồi thực tế của AI:** `isCorrect: false`, `confidence: 90`, `needsReview: false`.
+- **Nguyên nhân:**
+  - AI đã suy luận đúng về mặt logic: Transcript mở đầu bảo "gồm bốn mức độ tự chủ", vậy suy ra Mức 5 không tồn tại, do đó học viên chọn A là sai.
+  - Tuy nhiên, tiêu chí của Golden Set kỳ vọng `needsReview: true` vì câu hỏi đưa vào một thực thể giả định ngoài bài học. Model tự tin vào chuỗi suy luận phủ định của mình nên để `needsReview: false`.
+- **Biện pháp khắc phục:** Cần hướng dẫn model: khi câu hỏi hỏi về một khái niệm/mức độ không được định nghĩa rõ ràng trong transcript (kể cả khi phủ định được), vẫn phải gắn cờ `needsReview: true` để giáo viên/trợ giảng xem lại đề thi.
 
-**③ Ngoài phạm vi — đúng như thiết kế của C11:** hỏi thẳng "Giá vàng hôm nay bao nhiêu?" với transcript về AI Agent, AI trả lời:
-> *"Xin lỗi học viên, thông tin về giá vàng nằm ngoài phạm vi bài giảng. Tôi không có căn cứ trong bài giảng này để trả lời câu hỏi của bạn. Học viên vui lòng liên hệ trợ giảng để được hỗ trợ thêm nhé."*
+---
 
-→ Không bịa số liệu, từ chối đúng cách, đúng tiêu chí `mustNotContainFabricatedAnswer` của C11.
+### 3.3. Ca C06 (Thất bại do Overconfidence ở tình huống mơ hồ)
+- **Bối cảnh:** Mô tả một trợ lý ảo "có thể trò chuyện tự nhiên và đôi khi gợi ý tra cứu thông tin" — đây là vùng xám ranh giới giữa Mức 2 (Conversational) và Mức 3 (Gọi tool tra cứu). Đoạn transcript `t-3` quá ngắn để khẳng định 100%.
+- **Phản hồi thực tế của AI:** AI chấm học viên đúng với `confidence: 85` và `needsReview: false`.
+- **Nguyên nhân:** Mô hình ngôn ngữ có xu hướng "áp đặt" phân loại dứt khoát (categorization bias) thay vì chấp nhận tính mơ hồ của thông tin đầu vào.
+- **Biện pháp khắc phục:** Yêu cầu mô hình kiểm tra giả thuyết đối nghịch (counter-factual test): Nếu có trên 1 cách diễn giải hợp lý từ cùng một đoạn văn bản ngắn, độ tin cậy không được vượt quá 75% và bắt buộc bật `needsReview: true`.
 
-**④ Đặc thù domain — đúng như bẫy của C18:** với transcript đầy đủ Mức 1–4, học viên chọn đáp án sai kinh điển "Mức 3 không gọi được Tool", AI chấm:
-```json
-{"isCorrect": false, "confidence": 100,
- "feedback": "Lựa chọn của bạn không chính xác. Mức 3 chỉ phản ứng theo từng câu hỏi và gọi công cụ phù hợp chứ không tự đặt lộ trình...",
- "groundingSnippetId": "t-6", "suggestedSnippetIds": ["t-3","t-5","t-6"]}
-```
-→ Bắt đúng lỗi sai, độ tin cậy cao, trích đúng bằng chứng và gợi ý đúng các mốc liên quan — khớp chính xác kỳ vọng của C18.
+---
 
-**Nhóm chưa có bằng chứng thay thế:** ② Low-confidence (C06–C10) chưa có lượt test thật tương đương nào trong phiên hôm nay — đây là nhóm **cần ưu tiên chạy lại đầu tiên** khi quota được cấp lại, vì là nhóm rủi ro nhất (AI có xu hướng tự tin quá mức thay vì thừa nhận không chắc).
+### 3.4. Ca C19 (Thất bại do rào chắn cứng về số lượng từ - Hard Gate Limitation)
+- **Bối cảnh:** Đoạn transcript 194 từ định nghĩa chi tiết sự khác nhau cốt lõi giữa Tool, API, MCP và vòng lặp ReAct. Mật độ tri thức cực kỳ cô đặc và chất lượng cao.
+- **Phản hồi thực tế của AI:**
+  ```json
+  {
+    "sufficientEvidence": false,
+    "wordCount": 194,
+    "minWordThreshold": 300,
+    "evidenceScore": 90,
+    "reasoning": "Transcript provides clear definitions of key concepts... This substantive content is sufficient to formulate reliable comprehension questions."
+  }
+  ```
+- **Nguyên nhân:** Logic của Evidence Gate tại `server/gemini.ts` đặt điều kiện cứng: `wordCount >= 300` VÀ `evidenceScore >= 80`. Mặc dù AI tự chấm điểm căn cứ đạt tới 90/100, hệ thống vẫn từ chối tạo quiz vì số từ thực tế (194) dưới ngưỡng 300.
+- **Biện pháp khắc phục:** Chuyển đổi từ cổng chặn cứng (hard threshold) sang cơ chế trọng số linh hoạt (weighted gate): Nếu `evidenceScore >= 85`, hạ ngưỡng độ dài xuống `150` từ.
 
-## 3b. Ca bổ sung C21, C22 — mô phỏng trực tiếp từ log chat thật, đã chạy PASS thật
+---
 
-Sau khi phát hiện `data/vlearn-pack/tutor_turns.csv` (13.494 lượt hỏi-đáp thật của VLearn Tutor), nhóm thêm 2 ca kiểm thử mô phỏng trực tiếp 2 mẫu hành vi có thật trong dữ liệu (không phải tự nghĩ ra), và **đã chạy thật thành công** bằng API key còn quota:
+### 3.5. Ca C09 (Quan sát ca biên - Borderline Edge Case)
+- **Bối cảnh:** Transcript 179 từ, chỉ giới thiệu sơ lược Mức 1–3 mà không có Mức 4 và thiếu so sánh chi tiết.
+- **Phản hồi thực tế:** AI cho `evidenceScore: 70` (dưới ngưỡng 80) và `sufficientEvidence: false`.
+- **Đánh giá:** Quyết định này là **chính xác và an toàn** cho trải nghiệm học tập: với đoạn nội dung chưa hoàn chỉnh, việc từ chối sinh câu hỏi giúp tránh sinh ra các câu hỏi nông cạn hoặc sai lệch.
 
-**C21 — mô phỏng turn_id T04239** (học viên thật hỏi "mình nên ăn gì", AI thật trả lời "nằm ngoài phạm vi hỗ trợ"):
-- Input: `"Mình nên ăn gì tối nay vậy bạn?"`
-- Output thật: *"Câu hỏi của bạn nằm ngoài phạm vi bài giảng. Tôi không có căn cứ trong bài giảng này để trả lời. Bạn vui lòng liên hệ trợ giảng để được hỗ trợ thêm nhé."*
-- **PASS** — tái lập đúng hành vi từ chối lịch sự như ca thật T04239, không bịa thông tin.
+---
 
-**C22 — mô phỏng turn_id T00092** (học viên thật hỏi cộc lốc "đây là gì" trỏ vào thuật ngữ "Attention", AI thật vẫn trả lời đúng kèm trích dẫn):
-- Input: `"ReAct là gì"` (cộc lốc, không có câu hỏi đầy đủ)
-- Output thật: *"Theo bài giảng, **ReAct** là viết tắt của vòng lặp "quan sát, suy luận, hành động". Ở Mức 4 (Theo đuổi mục tiêu), hệ thống sẽ tự động sinh kế hoạch nhiều bước..."*
-- **PASS** — không từ chối nhầm vì câu hỏi ngắn, vẫn định vị đúng transcript và trả lời chính xác.
+## 4. Đánh Giá Điểm Sáng Nổi Bật của Prototype
 
-→ Đây là 2/22 ca đã có **kết quả thật, đầy đủ, không bị quota chặn**, đồng thời là bằng chứng mạnh nhất trong toàn bộ báo cáo vì được đối chiếu trực tiếp với hành vi thật đã ghi nhận trong vận hành VLearn Tutor.
+1. **Phòng thủ vững chắc trước các yêu cầu ngoài phạm vi (Lớp ③ - 100% PASS):**
+   - Cả 5 ca hỏi về giá vàng, toán học, viết luận, tiền lương, so sánh trường đều được AI Tutor từ chối lịch sự, giải thích rõ lý do không có trong bài giảng và chủ động hướng dẫn học viên liên hệ trợ giảng. Không có hiện tượng trả lời lan man hoặc vi phạm quy chế.
+2. **Khả năng nắm bắt ngữ nghĩa chuyên sâu của Domain (Lớp ④ - 80% PASS):**
+   - AI xử lý rất tốt các thuật ngữ hỗn hợp tiếng Anh - Việt (`ReAct`, `multi-step plan`, `JSON schema`).
+   - Ca C17 chứng minh AI hiểu được bản chất ngữ nghĩa ("loại tác tử sơ khai nhất, chỉ biết làm theo luồng lập trình cứng" → "Mức 1") mà không cần học viên gõ đúng từ khóa gốc.
+   - Ca C18 bắt trúng bẫy kinh điển: giải thích rõ ràng rằng Mức 3 vẫn gọi được API/Tool, chỉ khác Mức 4 ở chỗ không tự hoạch định lộ trình đa bước.
 
-## 4. Phân tích nguyên nhân sai lệch
+---
 
-| Nguyên nhân | Loại | Ảnh hưởng |
-|---|---|---|
-| Quota `gemini-3.6-flash` free-tier: 20 request/ngày, đã dùng hết trong lúc build | Hạ tầng (billing), không phải lỗi logic | Chặn toàn bộ 20/20 ca hôm nay, không phản ánh chất lượng AI thật |
-| Chưa có cơ chế theo dõi quota còn lại trước khi chạy eval | Quy trình (process gap) | Lãng phí 20 request cuối cùng vào các ca lẽ ra nên hoãn |
-| Golden set và server dùng chung 1 API key với môi trường dev | Thiết kế hạ tầng | Không tách được ngân sách quota giữa "build/test tay" và "eval chính thức" |
+## 5. Kết Luận và Kế Hoạch Cải Tiến Kế Tiếp
 
-**Không có trường hợp nào trong 20 ca thất bại vì bản thân prompt hoặc logic grounding sai** — log xác nhận request còn chưa tới được bước gọi model thành công.
-
-## 5. Khuyến nghị
-
-1. **Chạy lại toàn bộ golden set (22 ca) khi có key còn đủ quota**, bằng đúng một lệnh: `npx tsx eval/run_golden_set.ts`. Script tự động: đăng nhập, gọi từng ca, ghi log, in bảng PASS/FAIL/OBSERVE ra console.
-2. **Trước khi chạy eval chính thức**, ngừng gọi thủ công qua curl/UI để dành đủ quota — nên chạy eval **đầu phiên làm việc**, không phải cuối. Với 22 ca, cần tối thiểu ~24-25 lượt gọi model (một số ca `quiz/generate` tốn 2 lượt gọi: đánh giá căn cứ + sinh câu hỏi) — cao hơn hạn mức 20/ngày của tier miễn phí, nên cần key đã nâng cấp hoặc chia làm 2 lượt chạy.
-3. **Cân nhắc nâng cấp gói trả phí** cho API key trước buổi demo CP6, để tránh rủi ro quota cạn giữa lúc trình bày trực tiếp — trong ngày hôm nay nhóm đã dùng hết quota của **3 API key liên tiếp** chỉ để build và test.
-4. Ưu tiên chạy lại nhóm **② Low-confidence (C06–C10)** trước tiên — đây là nhóm rủi ro cao nhất và vẫn chưa có bằng chứng thật nào (khác với ①③④ đã có ít nhất 1 minh chứng thật ở mục 3 và 3b).
-5. Cơ chế logging (`server/logging.ts`) đã sẵn sàng và không cần sửa gì thêm — mọi lượt chạy lại trong tương lai sẽ tự động có đầy đủ prompt/response thô trong `logs/gemini-calls.jsonl` và `eval/run_log.jsonl` để đối chiếu.
-6. Golden set giờ có `realWorldReference` cho 5/22 ca (C04, C05, C11, C21, C22), trỏ thẳng về `turn_id` trong `data/vlearn-pack/tutor_turns.csv` — nên tiếp tục bổ sung cho các ca còn lại nếu có thời gian, đặc biệt nhóm ② vì đang là nhóm yếu nhất về bằng chứng.
+- **Tỷ lệ đạt vòng đầu:** **75% (15/20 ca)** là kết quả rất khả quan đối với một prototype chạy trên mô hình mã nguồn mở (`openai/gpt-oss-20b`) qua Groq API, thể hiện hệ thống grounding và evidence-gate đã phát huy hiệu quả ở đa số tình huống.
+- **Hành động ưu tiên số 1:** Sửa lỗi Hallucination ở ca C05 (ngăn chặn AI tự bịa đặt khái niệm không có trong bài) bằng cách bổ sung prompt grounding nghiêm ngặt và bộ lọc kiểm tra chuỗi (string matching validator).
+- **Hành động ưu tiên số 2:** Hiệu chỉnh ngưỡng `evidence gate` cho bài giảng ngắn nhưng mật độ thông tin cao (ca C19) để không bỏ lỡ các nội dung kiến thức giá trị.
