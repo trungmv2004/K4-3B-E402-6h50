@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { QuizQuestion } from '../types';
 import { useSpeechNarration } from '../hooks/useSpeechNarration';
 import {
-  Sparkles, 
-  Clock, 
-  Video, 
-  Play, 
-  Square, 
-  ArrowLeft, 
-  ArrowRight, 
-  Bookmark, 
-  FileText, 
-  Edit3, 
+  Sparkles,
+  Clock,
+  Video,
+  Play,
+  Square,
+  ArrowLeft,
+  ArrowRight,
+  Bookmark,
+  FileText,
+  Edit3,
   Paperclip,
   CheckCircle2
 } from 'lucide-react';
@@ -85,7 +85,7 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
       {/* Central Quiz Work Area */}
       <main className="flex-1 overflow-y-auto px-6 py-5 bg-[#f8fafc]">
         <div className="max-w-4xl mx-auto space-y-4">
-          
+
           {/* Header: Quiz Meta & AI Generation Badge */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div>
@@ -177,50 +177,7 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
             {/* Question Content */}
             <h3 className="text-sm font-semibold text-slate-900 leading-normal">{currentQ.title}</h3>
 
-            {/* Diagram Reference Visual Box (Matching Image 1) */}
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5">
-              <div className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider mb-2 flex items-center justify-between">
-                <span>{currentQ.diagramTitle || 'Sơ đồ 4 Mức độ tự chủ (Trích xuất từ Slide)'}</span>
-                <span className="text-slate-400">
-                  {currentQ.diagramSubtitle || 'Phạm vi tự chủ · không phải bảng xếp hạng'}
-                </span>
-              </div>
 
-              {/* 4-Level Diagram Container */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-xs">
-                {(currentQ.diagramLevels || [
-                  { level: 'MỨC 1', name: 'Trả lời theo kịch bản' },
-                  { level: 'MỨC 2', name: 'Trợ lý hội thoại' },
-                  { level: 'MỨC 3', name: 'Phản ứng với yêu cầu', isTarget: true, badge: 'Trọng tâm' },
-                  { level: 'MỨC 4', name: 'Theo đuổi mục tiêu' }
-                ]).map((lvl, i) => (
-                  <div
-                    key={i}
-                    className={`p-2.5 rounded text-center transition ${
-                      lvl.isTarget
-                        ? 'bg-red-50 border-2 border-red-500 text-red-900 shadow-xs relative'
-                        : 'bg-white border border-slate-300 text-slate-600'
-                    }`}
-                  >
-                    {lvl.badge && (
-                      <span className="absolute -top-2 right-2 text-[9px] bg-red-600 text-white px-1 rounded font-semibold">
-                        {lvl.badge}
-                      </span>
-                    )}
-                    <span
-                      className={`block font-bold text-[11px] ${
-                        lvl.isTarget ? 'text-red-800' : 'text-slate-800'
-                      }`}
-                    >
-                      {lvl.level}
-                    </span>
-                    <span className={`text-[11px] ${lvl.isTarget ? 'text-red-700' : 'text-slate-500'}`}>
-                      {lvl.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
 
             {/* Answer Options List */}
             <div className="space-y-2.5 pt-2">
@@ -230,11 +187,10 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
                   <label
                     key={option.key}
                     onClick={() => handleSelectOption(option.key)}
-                    className={`flex items-start p-3 rounded-xl cursor-pointer transition ${
-                      isSelected
+                    className={`flex items-start p-3 rounded-xl cursor-pointer transition ${isSelected
                         ? 'border-2 border-blue-600 bg-blue-50/50 hover:bg-blue-50'
                         : 'border border-slate-200 hover:bg-slate-50 hover:border-slate-300'
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"
@@ -264,11 +220,10 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
               <button
                 disabled={currentIndex === 0}
                 onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
-                className={`inline-flex items-center space-x-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold transition ${
-                  currentIndex === 0
+                className={`inline-flex items-center space-x-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold transition ${currentIndex === 0
                     ? 'border-slate-200 text-slate-300 cursor-not-allowed'
                     : 'border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer'
-                }`}
+                  }`}
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Câu trước</span>
@@ -277,11 +232,10 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
               <div className="flex items-center space-x-2">
                 <button
                   onClick={toggleFlagForReview}
-                  className={`inline-flex items-center space-x-1 px-3 py-1.5 border rounded-lg text-xs font-medium transition cursor-pointer ${
-                    currentQ.isFlaggedForReview
+                  className={`inline-flex items-center space-x-1 px-3 py-1.5 border rounded-lg text-xs font-medium transition cursor-pointer ${currentQ.isFlaggedForReview
                       ? 'border-amber-400 bg-amber-100 text-amber-900'
                       : 'border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100'
-                  }`}
+                    }`}
                 >
                   <Bookmark className="w-3.5 h-3.5 text-amber-600" />
                   <span>
