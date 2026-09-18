@@ -1,0 +1,6 @@
+{
+  "name": "Hệ Thống Tác Tử - VinUni LMS",
+  "description": "Hệ thống học tập thích ứng LMS Bài 3: Hệ Thống Tác Tử & Các Mức Độ Tự Chủ với AI Tutor đối chiếu Transcript, bài kiểm tra trắc nghiệm, chấm điểm lỗ hổng và cơ chế Fallback an toàn.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
