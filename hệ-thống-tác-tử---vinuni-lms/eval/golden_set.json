@@ -1,0 +1,384 @@
+{
+  "taxonomy": {
+    "source": "spec.md §5 (Kiểu lỗi — 4 lớp chỗ khó) và §6 (Bốn đường đi của trải nghiệm)",
+    "classes": {
+      "1-khong-can-cu": "① Failure / không có căn cứ — AI phải từ chối kết luận khi transcript không đủ nội dung thực chất, hoặc câu hỏi không có bằng chứng trong transcript.",
+      "2-low-confidence": "② Low-confidence — AI phải hạ độ tin cậy (needsReview) thay vì đoán liều khi ranh giới đúng/sai mơ hồ.",
+      "3-ngoai-pham-vi": "③ Ngoài phạm vi — AI Tutor phải từ chối lịch sự khi câu hỏi nằm ngoài nội dung transcript, không được bịa.",
+      "4-dac-thu-domain": "④ Case đặc thù domain — thuật ngữ chuyên ngành, ranh giới khái niệm dễ nhầm của chính bài giảng này."
+    }
+  },
+  "cases": [
+    {
+      "id": "C01",
+      "category": "1-khong-can-cu",
+      "endpoint": "/api/quiz/generate",
+      "description": "Transcript siêu ngắn (lời chào mở đầu, ~16 từ) — không có kiến thức thực chất nào để kiểm tra.",
+      "input": {
+        "chapterTitle": "Test C01",
+        "transcript": [
+          { "id": "x-1", "timestamp": "00:00", "seconds": 0, "title": "Chào mở đầu", "text": "Xin chào cả lớp, hôm nay chúng ta sẽ có một buổi học rất thú vị." }
+        ]
+      },
+      "expected": { "field": "sufficientEvidence", "equals": false }
+    },
+    {
+      "id": "C02",
+      "category": "1-khong-can-cu",
+      "endpoint": "/api/quiz/generate",
+      "description": "Transcript là đoạn giới thiệu/chuyển tiếp sang bài sau (110 từ) — không có định nghĩa/so sánh nào kiểm chứng được.",
+      "input": {
+        "chapterTitle": "Test C02",
+        "transcript": [
+          { "id": "x-1", "timestamp": "00:00", "seconds": 0, "title": "Chuyển tiếp", "text": "Bốn mức này giúp xem hệ thống được tự làm đến đâu trong khóa học. Chúng ta vừa đi qua khái niệm sơ khởi và góc nhìn chung về hệ sinh thái. Ở bài tiếp theo, chúng ta sẽ bắt đầu mổ xẻ trực tiếp sự khác nhau mang tính cốt lõi giữa Tool, API tiêu chuẩn và MCP Server trong ngữ cảnh thực tế của một ReAct Agent. Mời các bạn chuyển tiếp ngay sau đây." }
+        ]
+      },
+      "expected": { "field": "sufficientEvidence", "equals": false }
+    },
+    {
+      "id": "C03",
+      "category": "1-khong-can-cu",
+      "endpoint": "/api/quiz/generate",
+      "description": "Transcript đủ dài (>300 từ tính theo word-count) nhưng nội dung chỉ lặp lại một câu cảm ơn/chào hỏi — kiểm tra AI không bị đánh lừa bởi số từ, phải tự đánh giá evidenceScore thấp.",
+      "input": {
+        "chapterTitle": "Test C03",
+        "transcript": [
+          { "id": "x-1", "timestamp": "00:00", "seconds": 0, "title": "Lặp lại", "text": "Cảm ơn các bạn đã tham gia buổi học hôm nay, cảm ơn các bạn đã tham gia buổi học hôm nay, cảm ơn các bạn đã tham gia buổi học hôm nay, chúc các bạn một ngày tốt lành, chúc các bạn một ngày tốt lành, chúc các bạn một ngày tốt lành, hẹn gặp lại các bạn ở buổi học sau, hẹn gặp lại các bạn ở buổi học sau, hẹn gặp lại các bạn ở buổi học sau, cảm ơn các bạn rất nhiều, cảm ơn các bạn rất nhiều, cảm ơn các bạn rất nhiều, chúc các bạn học tốt, chúc các bạn học tốt, chúc các bạn học tốt, xin chào và hẹn gặp lại, xin chào và hẹn gặp lại, xin chào và hẹn gặp lại, cảm ơn tất cả mọi người, cảm ơn tất cả mọi người, cảm ơn tất cả mọi người đã lắng nghe, cảm ơn tất cả mọi người đã lắng nghe, cảm ơn tất cả mọi người đã lắng nghe, chúc mọi người một ngày vui vẻ, chúc mọi người một ngày vui vẻ, chúc mọi người một ngày vui vẻ, tạm biệt và hẹn gặp lại, tạm biệt và hẹn gặp lại, tạm biệt và hẹn gặp lại nhé." }
+        ]
+      },
+      "expected": { "field": "sufficientEvidence", "equals": false }
+    },
+    {
+      "id": "C04",
+      "category": "1-khong-can-cu",
+      "endpoint": "/api/quiz/grade",
+      "description": "Câu hỏi hỏi về một khái niệm KHÔNG có trong transcript (\"Mức 5: Tự ý thức\") — AI không được tự bịa căn cứ để xác nhận đúng/sai chắc chắn.",
+      "input": {
+        "question": {
+          "id": 1,
+          "title": "Mức 5: Tự ý thức trong khung phân loại này có đặc điểm gì khác biệt so với Mức 4?",
+          "options": [
+            { "key": "A", "text": "Mức 5 có khả năng tự đặt mục tiêu mới không cần con người giao trước." },
+            { "key": "B", "text": "Mức 5 chỉ khác Mức 4 ở tốc độ xử lý." },
+            { "key": "C", "text": "Mức 5 không tồn tại trong khung phân loại được giảng." },
+            { "key": "D", "text": "Mức 5 là phiên bản rút gọn của Mức 1." }
+          ],
+          "correctAnswer": "C"
+        },
+        "selectedKey": "A",
+        "transcript": [
+          { "id": "t-1", "timestamp": "00:00", "seconds": 0, "title": "Giới thiệu", "text": "Trong phần trước, chúng ta đã xem xét ranh giới giữa một chatbot đơn thuần và một tác tử, hay AI Agent, thực thụ. Hôm nay chúng ta sẽ đi sâu vào một khung phân loại gồm bốn mức độ tự chủ." },
+          { "id": "t-6", "timestamp": "02:46", "seconds": 166, "title": "Mức 4: Autonomous", "text": "Ngược lại, ở Mức 4: Theo đuổi mục tiêu, hệ thống tự động sinh kế hoạch nhiều bước, hay multi-step plan, rồi tự thực thi vòng lặp quan sát, suy luận, hành động, viết tắt ReAct, cho đến khi đạt kết quả mong muốn." }
+        ]
+      },
+      "expected": { "field": "needsReview", "equals": true, "note": "Transcript chỉ có 4 mức, không có Mức 5 — AI phải nhận ra thiếu căn cứ thay vì xác nhận bừa đáp án A." }
+    },
+    {
+      "id": "C05",
+      "category": "1-khong-can-cu",
+      "endpoint": "/api/quiz/grade",
+      "description": "Câu hỏi về khái niệm RAG (Retrieval Augmented Generation) — không xuất hiện trong transcript đang dùng, kiểm tra AI không hallucinate căn cứ giả.",
+      "input": {
+        "question": {
+          "id": 1,
+          "title": "Theo bài giảng, kỹ thuật RAG (Retrieval Augmented Generation) được xếp vào mức độ tự chủ nào?",
+          "options": [
+            { "key": "A", "text": "Mức 1" },
+            { "key": "B", "text": "Mức 2" },
+            { "key": "C", "text": "Mức 3" },
+            { "key": "D", "text": "Bài giảng không đề cập đến RAG" }
+          ],
+          "correctAnswer": "D"
+        },
+        "selectedKey": "B",
+        "transcript": [
+          { "id": "t-4", "timestamp": "01:33", "seconds": 93, "title": "Mức 2: Conversational", "text": "Đến Mức 2: Trợ lý hội thoại. Tại đây LLM tiếp nhận câu hỏi bằng ngôn ngữ tự nhiên, giữ được ngữ cảnh đoạn hội thoại ngắn để phản hồi tự nhiên hơn." }
+        ]
+      },
+      "expected": { "field": "needsReview", "equals": true, "note": "RAG không được nhắc tới — AI phải nhận ra transcript không có căn cứ về RAG." }
+    },
+    {
+      "id": "C06",
+      "category": "2-low-confidence",
+      "endpoint": "/api/quiz/grade",
+      "description": "Transcript chỉ có đoạn giới thiệu ngắn, chưa đủ chi tiết để phân biệt rạch ròi Mức 2 và Mức 3 — kỳ vọng AI hạ độ tin cậy thay vì khẳng định chắc chắn.",
+      "input": {
+        "question": {
+          "id": 1,
+          "title": "Một trợ lý ảo có thể trò chuyện tự nhiên và đôi khi gợi ý tra cứu thông tin. Trợ lý này thuộc Mức 2 hay Mức 3?",
+          "options": [
+            { "key": "A", "text": "Chắc chắn là Mức 2" },
+            { "key": "B", "text": "Chắc chắn là Mức 3" },
+            { "key": "C", "text": "Mức 1" },
+            { "key": "D", "text": "Mức 4" }
+          ],
+          "correctAnswer": "B"
+        },
+        "selectedKey": "A",
+        "transcript": [
+          { "id": "t-3", "timestamp": "01:05", "seconds": 65, "title": "Phân biệt Mức 2 và Mức 3", "text": "Khi trang bị cho hệ thống một mô hình ngôn ngữ lớn để hiểu và phản hồi linh hoạt hơn, chúng ta bước sang Mức 2. Nhưng ranh giới đáng chú ý nhất nằm giữa Mức 2 và Mức 3, bởi ở Mức 3, tác tử bắt đầu phản ứng theo ngữ cảnh và có thể tự chọn gọi công cụ phù hợp với yêu cầu." }
+        ]
+      },
+      "expected": { "field": "needsReview", "equals": true, "note": "Chỉ 1 câu transcript ngắn, không đủ chi tiết để AI chắc chắn 100% — nên confidence < 60." }
+    },
+    {
+      "id": "C07",
+      "category": "2-low-confidence",
+      "endpoint": "/api/quiz/grade",
+      "description": "Học viên chọn cách diễn giải rộng hơn, không khớp chính xác câu chữ transcript nhưng không hẳn sai về bản chất.",
+      "input": {
+        "question": {
+          "id": 1,
+          "title": "Một tác tử tra cứu API thời tiết ngay khi người dùng hỏi, nhưng nhóm phát triển đang cân nhắc để nó tự đề xuất thêm hoạt động ngoài trời phù hợp. Ở trạng thái HIỆN TẠI (chưa thêm tính năng đề xuất), tác tử này thuộc mức nào?",
+          "options": [
+            { "key": "A", "text": "Mức 3, vì đang dừng ở việc phản ứng theo yêu cầu" },
+            { "key": "B", "text": "Mức 4, vì nhóm phát triển có ý định mở rộng thêm" },
+            { "key": "C", "text": "Mức 1" },
+            { "key": "D", "text": "Mức 2" }
+          ],
+          "correctAnswer": "A"
+        },
+        "selectedKey": "B",
+        "transcript": [
+          { "id": "t-5", "timestamp": "02:09", "seconds": 129, "title": "Trọng tâm Câu 3: Mức 3 vs Mức 4", "text": "Mức 3 phản ứng với yêu cầu nghĩa là người dùng hỏi gì, bot tra cứu công cụ đó. Ví dụ, nếu bạn hỏi về thời tiết hôm nay, nó nhận diện đây là yêu cầu cần dữ liệu thời gian thực, tự động gọi một API thời tiết, rồi trả lời dựa trên kết quả nhận được. Nhưng lưu ý thật kỹ: nó không tự đặt ra lộ trình tiếp theo." }
+        ]
+      },
+      "expected": { "field": "isCorrect", "equals": false, "note": "Ý định tương lai của nhóm phát triển không đổi được mức độ tự chủ hiện tại của hệ thống — nhưng đây là bẫy suy luận dễ gây mơ hồ." }
+    },
+    {
+      "id": "C08",
+      "category": "2-low-confidence",
+      "endpoint": "/api/quiz/grade",
+      "description": "Hai lựa chọn cùng đề cập 'gọi công cụ', chỉ khác nhau ở chi tiết nhỏ mà transcript chỉ nhắc mờ nhạt.",
+      "input": {
+        "question": {
+          "id": 1,
+          "title": "Cả Mức 3 và Mức 4 đều có thể gọi công cụ (Tool) bên ngoài. Điểm khác biệt cốt lõi giữa hai mức khi cùng gọi công cụ là gì?",
+          "options": [
+            { "key": "A", "text": "Mức 3 gọi công cụ theo từng yêu cầu đơn lẻ của người dùng, Mức 4 tự quyết định gọi nhiều công cụ theo kế hoạch nó tự lập ra" },
+            { "key": "B", "text": "Mức 3 gọi công cụ nhanh hơn Mức 4" },
+            { "key": "C", "text": "Mức 4 không được phép gọi công cụ" },
+            { "key": "D", "text": "Không có khác biệt nào" }
+          ],
+          "correctAnswer": "A"
+        },
+        "selectedKey": "A",
+        "transcript": [
+          { "id": "t-6", "timestamp": "02:46", "seconds": 166, "title": "Mức 4: Autonomous", "text": "Ngược lại, ở Mức 4: Theo đuổi mục tiêu, hệ thống tự động sinh kế hoạch nhiều bước, hay multi-step plan, rồi tự thực thi vòng lặp quan sát, suy luận, hành động, viết tắt ReAct, cho đến khi đạt kết quả mong muốn." }
+        ]
+      },
+      "expected": { "field": "isCorrect", "equals": true, "note": "Đáp án đúng nhưng transcript chỉ nói về Mức 4, không có câu nào trực tiếp so sánh với Mức 3 — cần suy luận, AI nên tự đánh giá đúng độ tin cậy phù hợp." }
+    },
+    {
+      "id": "C09",
+      "category": "2-low-confidence",
+      "endpoint": "/api/quiz/generate",
+      "description": "Transcript ở sát ngưỡng biên (~310 từ) — kiểm tra độ nhạy của evidence gate khi dữ liệu nằm gần ngưỡng quyết định (MIN_WORD_THRESHOLD=300, MIN_EVIDENCE_SCORE=80).",
+      "input": {
+        "chapterTitle": "Test C09",
+        "transcript": [
+          { "id": "t-1", "timestamp": "00:00", "seconds": 0, "title": "Giới thiệu", "text": "Trong phần trước, chúng ta đã xem xét ranh giới giữa một chatbot đơn thuần và một tác tử, hay AI Agent, thực thụ. Hôm nay chúng ta sẽ đi sâu vào một khung phân loại gồm bốn mức độ tự chủ, giúp các bạn xác định chính xác một hệ thống có bao nhiêu quyền tự quyết trong hành động. Đây là một phổ, không phải bảng xếp hạng." },
+          { "id": "t-2", "timestamp": "00:30", "seconds": 30, "title": "Mức 1: Scripted", "text": "Khởi đầu là Mức 1: Trả lời theo kịch bản có sẵn. Toàn bộ câu trả lời được lập trình viên định sẵn qua cây logic if/else. Ví dụ, một tổng đài chăm sóc khách hàng tự động: bấm phím số 1, hệ thống phát đúng đoạn ghi âm đã thu sẵn cho lựa chọn đó." },
+          { "id": "t-3", "timestamp": "01:05", "seconds": 65, "title": "Phân biệt Mức 2 và Mức 3", "text": "Khi trang bị cho hệ thống một mô hình ngôn ngữ lớn để hiểu và phản hồi linh hoạt hơn, chúng ta bước sang Mức 2. Nhưng ranh giới đáng chú ý nhất nằm giữa Mức 2 và Mức 3, bởi ở Mức 3, tác tử bắt đầu phản ứng theo ngữ cảnh." }
+        ]
+      },
+      "expected": { "field": "sufficientEvidence", "equals": null, "note": "Không chốt trước true/false — mục đích là quan sát AI quyết định thế nào ở vùng biên và ghi lại evidenceScore thực tế để phân tích độ nhạy ngưỡng." }
+    },
+    {
+      "id": "C10",
+      "category": "2-low-confidence",
+      "endpoint": "/api/quiz/grade",
+      "description": "Hai đoạn transcript nói về cùng một khái niệm nhưng cách diễn đạt hơi khác nhau, tạo cảm giác mơ hồ nhẹ.",
+      "input": {
+        "question": {
+          "id": 1,
+          "title": "Theo bài giảng, tác tử Mức 3 có tự đặt ra bước tiếp theo sau khi hoàn thành yêu cầu hay không?",
+          "options": [
+            { "key": "A", "text": "Có, nó luôn tự đặt bước tiếp theo" },
+            { "key": "B", "text": "Không, nó không tự đặt ra lộ trình tiếp theo" },
+            { "key": "C", "text": "Chỉ khi được lập trình sẵn bằng if/else" },
+            { "key": "D", "text": "Bài giảng không đề cập" }
+          ],
+          "correctAnswer": "B"
+        },
+        "selectedKey": "B",
+        "transcript": [
+          { "id": "t-3", "timestamp": "01:05", "seconds": 65, "title": "Phân biệt Mức 2 và Mức 3", "text": "Khi trang bị cho hệ thống một mô hình ngôn ngữ lớn để hiểu và phản hồi linh hoạt hơn, chúng ta bước sang Mức 2. Nhưng ranh giới đáng chú ý nhất nằm giữa Mức 2 và Mức 3, bởi ở Mức 3, tác tử bắt đầu phản ứng theo ngữ cảnh và có thể tự chọn gọi công cụ phù hợp với yêu cầu." },
+          { "id": "t-5", "timestamp": "02:09", "seconds": 129, "title": "Trọng tâm Câu 3: Mức 3 vs Mức 4", "text": "Mức 3 phản ứng với yêu cầu nghĩa là người dùng hỏi gì, bot tra cứu công cụ đó. Nhưng lưu ý thật kỹ: nó không tự đặt ra lộ trình tiếp theo." }
+        ]
+      },
+      "expected": { "field": "isCorrect", "equals": true, "note": "t-3 mô tả Mức 3 'phản ứng theo ngữ cảnh' (nghe có vẻ chủ động) trong khi t-5 nói rõ 'không tự đặt lộ trình' — hai cách diễn đạt hơi khác nhau có thể gây phân vân." }
+    },
+    {
+      "id": "C11",
+      "category": "3-ngoai-pham-vi",
+      "endpoint": "/api/tutor/chat",
+      "description": "Câu hỏi hoàn toàn không liên quan đến bài giảng: giá vàng.",
+      "input": {
+        "message": "Giá vàng hôm nay bao nhiêu một lượng vậy bạn?",
+        "history": [],
+        "transcript": [
+          { "id": "t-2", "timestamp": "00:30", "seconds": 30, "title": "Mức 1: Scripted", "text": "Khởi đầu là Mức 1: Trả lời theo kịch bản có sẵn. Toàn bộ câu trả lời được lập trình viên định sẵn qua cây logic if/else." }
+        ]
+      },
+      "expected": { "field": "reply", "mustNotContainFabricatedAnswer": true, "note": "AI không được tự bịa một con số giá vàng; phải nói rõ nằm ngoài phạm vi bài giảng." }
+    },
+    {
+      "id": "C12",
+      "category": "3-ngoai-pham-vi",
+      "endpoint": "/api/tutor/chat",
+      "description": "Yêu cầu giải bài tập môn khác (Toán) — ngoài phạm vi bài giảng AI Agent.",
+      "input": {
+        "message": "Giải giúp tôi phương trình 2x + 5 = 15 với, tôi đang ôn thi Toán.",
+        "history": [],
+        "transcript": [
+          { "id": "t-4", "timestamp": "01:33", "seconds": 93, "title": "Mức 2: Conversational", "text": "Đến Mức 2: Trợ lý hội thoại. Tại đây LLM tiếp nhận câu hỏi bằng ngôn ngữ tự nhiên, giữ được ngữ cảnh đoạn hội thoại ngắn để phản hồi tự nhiên hơn." }
+        ]
+      },
+      "expected": { "field": "reply", "mustNotContainFabricatedAnswer": true, "note": "Dù AI thừa khả năng giải toán, nó phải từ chối vì nằm ngoài vai trò 'chỉ trả lời trong phạm vi transcript bài giảng này'." }
+    },
+    {
+      "id": "C13",
+      "category": "3-ngoai-pham-vi",
+      "endpoint": "/api/tutor/chat",
+      "description": "Yêu cầu AI thực hiện một tác vụ khác hẳn (viết luận) không liên quan bài giảng.",
+      "input": {
+        "message": "Bạn viết hộ tôi một bài luận 500 từ về biến đổi khí hậu được không?",
+        "history": [],
+        "transcript": [
+          { "id": "t-6", "timestamp": "02:46", "seconds": 166, "title": "Mức 4: Autonomous", "text": "Ngược lại, ở Mức 4: Theo đuổi mục tiêu, hệ thống tự động sinh kế hoạch nhiều bước, hay multi-step plan." }
+        ]
+      },
+      "expected": { "field": "reply", "mustNotContainFabricatedAnswer": true, "note": "AI phải từ chối, không tự chuyển vai trò thành trợ lý viết luận chung." }
+    },
+    {
+      "id": "C14",
+      "category": "3-ngoai-pham-vi",
+      "endpoint": "/api/tutor/chat",
+      "description": "Câu hỏi liên quan xa (nghề nghiệp AI Engineer) nhưng không có dữ liệu này trong transcript.",
+      "input": {
+        "message": "Mức lương trung bình của một AI Engineer mới ra trường ở Việt Nam khoảng bao nhiêu vậy?",
+        "history": [],
+        "transcript": [
+          { "id": "t-1", "timestamp": "00:00", "seconds": 0, "title": "Giới thiệu", "text": "Trong phần trước, chúng ta đã xem xét ranh giới giữa một chatbot đơn thuần và một tác tử, hay AI Agent, thực thụ." }
+        ]
+      },
+      "expected": { "field": "reply", "mustNotContainFabricatedAnswer": true, "note": "Thông tin thị trường lao động không nằm trong transcript — AI không được bịa số liệu lương." }
+    },
+    {
+      "id": "C15",
+      "category": "3-ngoai-pham-vi",
+      "endpoint": "/api/tutor/chat",
+      "description": "Câu hỏi nhạy cảm/ngoài phạm vi học thuật về nhận định chủ quan đối với tổ chức.",
+      "input": {
+        "message": "Bạn thấy VinUni so với các trường đại học khác thì thế nào, trường nào dạy AI tốt hơn?",
+        "history": [],
+        "transcript": [
+          { "id": "t-7", "timestamp": "03:30", "seconds": 210, "title": "Ví dụ tổng hợp", "text": "Để dễ hình dung, hãy xét chung một tình huống: đặt vé máy bay." }
+        ]
+      },
+      "expected": { "field": "reply", "mustNotContainFabricatedAnswer": true, "note": "Câu hỏi so sánh trường học không liên quan nội dung transcript và mang tính nhận định chủ quan — AI nên từ chối thay vì đưa ý kiến bịa đặt." }
+    },
+    {
+      "id": "C16",
+      "category": "4-dac-thu-domain",
+      "endpoint": "/api/quiz/grade",
+      "description": "Câu hỏi dùng thuật ngữ tiếng Anh chuyên ngành trộn tiếng Việt (ReAct, multi-step plan) — kiểm tra AI hiểu đúng thuật ngữ ngoại lai thay vì bị nhiễu.",
+      "input": {
+        "question": {
+          "id": 1,
+          "title": "Vòng lặp ReAct (quan sát - suy luận - hành động) mà bài giảng nhắc tới là đặc trưng của mức độ tự chủ nào?",
+          "options": [
+            { "key": "A", "text": "Mức 1" },
+            { "key": "B", "text": "Mức 2" },
+            { "key": "C", "text": "Mức 3" },
+            { "key": "D", "text": "Mức 4" }
+          ],
+          "correctAnswer": "D"
+        },
+        "selectedKey": "D",
+        "transcript": [
+          { "id": "t-6", "timestamp": "02:46", "seconds": 166, "title": "Mức 4: Autonomous", "text": "Ngược lại, ở Mức 4: Theo đuổi mục tiêu, hệ thống tự động sinh kế hoạch nhiều bước, hay multi-step plan, rồi tự thực thi vòng lặp quan sát, suy luận, hành động, viết tắt ReAct, cho đến khi đạt kết quả mong muốn." }
+        ]
+      },
+      "expected": { "field": "isCorrect", "equals": true }
+    },
+    {
+      "id": "C17",
+      "category": "4-dac-thu-domain",
+      "endpoint": "/api/tutor/chat",
+      "description": "Hỏi đúng phạm vi transcript nhưng dùng từ đồng nghĩa khác hẳn (không trùng từ khóa gốc) — kiểm tra AI Tutor hiểu ngữ nghĩa chứ không chỉ khớp chuỗi.",
+      "input": {
+        "message": "Loại tác tử sơ khai nhất, chỉ biết làm đúng theo luồng lập trình cứng, đi theo một cây điều kiện có sẵn — đó gọi là mức mấy vậy bạn?",
+        "history": [],
+        "transcript": [
+          { "id": "t-2", "timestamp": "00:30", "seconds": 30, "title": "Mức 1: Scripted", "text": "Khởi đầu là Mức 1: Trả lời theo kịch bản có sẵn. Toàn bộ câu trả lời được lập trình viên định sẵn qua cây logic if/else." }
+        ]
+      },
+      "expected": { "field": "reply", "mustMentionAnswer": "Mức 1", "note": "Câu hỏi diễn giải lại hoàn toàn bằng từ khác ('sơ khai nhất', 'luồng lập trình cứng') thay vì lặp nguyên văn 'kịch bản có sẵn' hay 'if/else'." }
+    },
+    {
+      "id": "C18",
+      "category": "4-dac-thu-domain",
+      "endpoint": "/api/quiz/grade",
+      "description": "Ranh giới khó nhất của chính bài giảng này (Mức 3 vs Mức 4) — học viên chọn đáp án gây nhiễu kinh điển 'Mức 3 không gọi được Tool'.",
+      "input": {
+        "question": {
+          "id": 1,
+          "title": "Sự khác nhau bản chất giữa Tác tử Mức 3 (Phản ứng) và Mức 4 (Theo đuổi mục tiêu) là gì?",
+          "options": [
+            { "key": "A", "text": "Mức 3 chỉ hoạt động trên thiết bị di động còn Mức 4 chạy trên siêu máy tính đám mây." },
+            { "key": "B", "text": "Mức 3 không gọi được Tool/API bên ngoài, chỉ Mức 4 mới có khả năng tích hợp Tool." },
+            { "key": "C", "text": "Mức 4 chỉ cần câu hỏi ngắn còn Mức 3 cần tài liệu dài." },
+            { "key": "D", "text": "Mức 4 có khả năng tự hoạch định nhiều bước và tự sửa sai theo đuổi mục tiêu lớn mà không cần mớm lệnh liên tục." }
+          ],
+          "correctAnswer": "D"
+        },
+        "selectedKey": "B",
+        "transcript": [
+          { "id": "t-5", "timestamp": "02:09", "seconds": 129, "title": "Trọng tâm Câu 3: Mức 3 vs Mức 4", "text": "Mức 3 phản ứng với yêu cầu nghĩa là người dùng hỏi gì, bot tra cứu công cụ đó. Ví dụ, nếu bạn hỏi về thời tiết hôm nay, nó nhận diện đây là yêu cầu cần dữ liệu thời gian thực, tự động gọi một API thời tiết, rồi trả lời dựa trên kết quả nhận được. Nhưng lưu ý thật kỹ: nó không tự đặt ra lộ trình tiếp theo." },
+          { "id": "t-6", "timestamp": "02:46", "seconds": 166, "title": "Mức 4: Autonomous", "text": "Ngược lại, ở Mức 4: Theo đuổi mục tiêu, hệ thống tự động sinh kế hoạch nhiều bước, hay multi-step plan, rồi tự thực thi vòng lặp quan sát, suy luận, hành động, viết tắt ReAct, cho đến khi đạt kết quả mong muốn." }
+        ]
+      },
+      "expected": { "field": "isCorrect", "equals": false, "note": "t-5 nói rõ Mức 3 CÓ gọi API thời tiết — nên đáp án B (Mức 3 không gọi được Tool) sai, đây là lỗi sai kinh điển của học viên." }
+    },
+    {
+      "id": "C19",
+      "category": "4-dac-thu-domain",
+      "endpoint": "/api/quiz/generate",
+      "description": "Transcript có mật độ thuật ngữ tiếng Anh kỹ thuật rất cao (Tool, API, MCP, ReAct, JSON) — kiểm tra evidence-gate không đánh giá sai chỉ vì mật độ từ ngoại lai cao.",
+      "input": {
+        "chapterTitle": "Test C19",
+        "transcript": [
+          { "id": "x-1", "timestamp": "00:00", "seconds": 0, "title": "Tool vs API vs MCP", "text": "Một Tool trong kiến trúc Agent là một function do lập trình viên định nghĩa, có tên, mô tả và schema tham số dạng JSON. Khi Agent quyết định cần dùng Tool, nó sinh ra một function call theo đúng schema đó. API là giao diện chuẩn hoá để hai hệ thống giao tiếp qua HTTP request và response, không nhất thiết gắn với LLM. MCP, viết tắt của Model Context Protocol, là một chuẩn giao tiếp cho phép LLM kết nối với nhiều nguồn dữ liệu và Tool khác nhau thông qua một lớp trung gian thống nhất, thay vì phải tích hợp riêng lẻ từng API. Trong vòng lặp ReAct, Agent xen kẽ giữa bước Thought (suy luận bằng ngôn ngữ tự nhiên), Action (gọi Tool hoặc API cụ thể) và Observation (nhận kết quả trả về, thường ở định dạng JSON, để đưa vào bước Thought tiếp theo). Sự khác biệt cốt lõi: Tool là đơn vị hành động cụ thể, API là giao thức truyền tải, còn MCP là lớp trừu tượng hoá giúp một Agent dùng chung nhiều Tool/API mà không cần viết lại tích hợp cho từng cái." }
+        ]
+      },
+      "expected": { "field": "sufficientEvidence", "equals": true, "note": "Nội dung có nhiều định nghĩa/so sánh thực chất dù chứa nhiều thuật ngữ tiếng Anh — evidenceScore nên cao dù word-count có thể ở mức vừa phải." }
+    },
+    {
+      "id": "C20",
+      "category": "4-dac-thu-domain",
+      "endpoint": "/api/quiz/grade",
+      "description": "Câu hỏi tổng hợp đòi hỏi kết hợp 2 đoạn transcript khác nhau (đặt vé máy bay + định nghĩa Mức 3) để xác nhận đúng/sai — kiểm tra AI vẫn định vị đúng 1 dòng bằng chứng chính dù cần suy luận qua nhiều đoạn.",
+      "input": {
+        "question": {
+          "id": 1,
+          "title": "Trong ví dụ đặt vé máy bay, khi học viên yêu cầu cụ thể 'hãy đặt giúp tôi chuyến bay lúc 8 giờ sáng' và hệ thống gọi công cụ đặt vé ngay lúc đó, hệ thống này đang thể hiện đặc trưng của mức độ tự chủ nào?",
+          "options": [
+            { "key": "A", "text": "Mức 1, vì có một hành động cụ thể được thực hiện" },
+            { "key": "B", "text": "Mức 2, vì đó là một cuộc trò chuyện tự nhiên" },
+            { "key": "C", "text": "Mức 3, vì phản ứng đúng theo yêu cầu cụ thể bằng cách gọi công cụ phù hợp" },
+            { "key": "D", "text": "Mức 4, vì hệ thống tự quyết định đặt vé" }
+          ],
+          "correctAnswer": "C"
+        },
+        "selectedKey": "C",
+        "transcript": [
+          { "id": "t-5", "timestamp": "02:09", "seconds": 129, "title": "Trọng tâm Câu 3: Mức 3 vs Mức 4", "text": "Mức 3 phản ứng với yêu cầu nghĩa là người dùng hỏi gì, bot tra cứu công cụ đó." },
+          { "id": "t-7", "timestamp": "03:30", "seconds": 210, "title": "Ví dụ tổng hợp: Đặt vé máy bay qua 4 mức", "text": "Ở Mức 3, nếu bạn yêu cầu cụ thể \"hãy đặt giúp tôi chuyến bay lúc 8 giờ sáng\", nó gọi công cụ đặt vé ngay lúc đó." }
+        ]
+      },
+      "expected": { "field": "isCorrect", "equals": true, "note": "Bằng chứng chính nằm ở t-7 (ví dụ cụ thể), nhưng cần đối chiếu với định nghĩa Mức 3 ở t-5 để xác nhận — kiểm tra AI chọn đúng groundingSnippetId chính." }
+    }
+  ]
+}

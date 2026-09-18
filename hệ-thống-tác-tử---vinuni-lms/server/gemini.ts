@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import type { GenerateContentParameters } from '@google/genai';
 import type { QuizQuestion, TranscriptSnippet } from '../src/types';
+import { logGeminiCall, stringifyContents } from './logging';
 
 export const MODEL = 'gemini-3.6-flash';
 export const MIN_WORD_THRESHOLD = 300;
@@ -23,13 +24,47 @@ export function transcriptTable(transcript: TranscriptSnippet[]): string {
 
 // Gemini trả 503 UNAVAILABLE khá thường xuyên khi model đang quá tải tạm thời;
 // thử lại một vài lần với backoff ngắn trước khi báo lỗi cho người dùng.
-export async function generateContentWithRetry(params: GenerateContentParameters, attempts = 3) {
+// Mọi lời gọi (thành công lẫn thất bại) đều được ghi lại nguyên văn prompt + raw response vào
+// logs/gemini-calls.jsonl để phục vụ xác minh kỹ thuật (xem server/logging.ts).
+export async function generateContentWithRetry(
+  params: GenerateContentParameters,
+  context: string,
+  attempts = 5,
+  caseId?: string
+) {
   if (!ai) throw new Error('GEMINI_API_KEY chưa được cấu hình.');
+  const promptText = stringifyContents(params.contents);
+
   for (let attempt = 1; attempt <= attempts; attempt++) {
+    const startedAt = Date.now();
     try {
-      return await ai.models.generateContent(params);
+      const response = await ai.models.generateContent(params);
+      logGeminiCall({
+        timestamp: new Date().toISOString(),
+        context,
+        model: String(params.model),
+        attempt,
+        latencyMs: Date.now() - startedAt,
+        status: 'ok',
+        promptText,
+        rawResponseText: response.text,
+        caseId,
+      });
+      return response;
     } catch (err) {
       const status = (err as { status?: number })?.status;
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logGeminiCall({
+        timestamp: new Date().toISOString(),
+        context,
+        model: String(params.model),
+        attempt,
+        latencyMs: Date.now() - startedAt,
+        status: 'error',
+        promptText,
+        errorMessage,
+        caseId,
+      });
       if (status !== 503 || attempt === attempts) throw err;
       await new Promise(resolve => setTimeout(resolve, attempt * 800));
     }
@@ -45,7 +80,7 @@ export interface EvidenceEvaluation {
 }
 
 // AI quyết định #1: transcript có đủ căn cứ kiến thức để sinh quiz kiểm tra hiểu bài an toàn hay không.
-export async function evaluateEvidence(transcript: TranscriptSnippet[]): Promise<EvidenceEvaluation> {
+export async function evaluateEvidence(transcript: TranscriptSnippet[], caseId?: string): Promise<EvidenceEvaluation> {
   const wordCount = countWords(transcript);
   const schema = {
     type: Type.OBJECT,
@@ -60,11 +95,16 @@ export async function evaluateEvidence(transcript: TranscriptSnippet[]): Promise
     required: ['evidenceScore', 'reasoning'],
   };
 
-  const response = await generateContentWithRetry({
-    model: MODEL,
-    contents: `Bạn là hệ thống kiểm định chất lượng nội dung cho một AI Tutor. Đánh giá đoạn transcript bài giảng dưới đây (${wordCount} từ) có đủ nội dung kiến thức thực chất để tạo câu hỏi kiểm tra hiểu bài đáng tin cậy hay không, hay chỉ là lời dẫn nhập/giới thiệu/chuyển tiếp không có gì để kiểm chứng.\n\nTranscript:\n${transcriptTable(transcript)}\n\nTrả về JSON đúng schema.`,
-    config: { responseMimeType: 'application/json', responseSchema: schema },
-  });
+  const response = await generateContentWithRetry(
+    {
+      model: MODEL,
+      contents: `Bạn là hệ thống kiểm định chất lượng nội dung cho một AI Tutor. Đánh giá đoạn transcript bài giảng dưới đây (${wordCount} từ) có đủ nội dung kiến thức thực chất để tạo câu hỏi kiểm tra hiểu bài đáng tin cậy hay không, hay chỉ là lời dẫn nhập/giới thiệu/chuyển tiếp không có gì để kiểm chứng.\n\nTranscript:\n${transcriptTable(transcript)}\n\nTrả về JSON đúng schema.`,
+      config: { responseMimeType: 'application/json', responseSchema: schema },
+    },
+    'quiz.evaluateEvidence',
+    3,
+    caseId
+  );
 
   const json = JSON.parse(response.text ?? '{}');
   const evidenceScore = Number(json.evidenceScore ?? 0);
@@ -112,13 +152,19 @@ const quizSchema = {
 export async function generateQuizQuestions(
   chapterTitle: string,
   transcript: TranscriptSnippet[],
-  evidenceScore: number
+  evidenceScore: number,
+  caseId?: string
 ): Promise<QuizQuestion[]> {
-  const response = await generateContentWithRetry({
-    model: MODEL,
-    contents: `Bạn là AI Tutor. Sinh đúng 3 câu hỏi kiểm tra hiểu bài THEO TÌNH HUỐNG ÁP DỤNG kiến thức (không hỏi tái hiện định nghĩa/từ khóa trực tiếp), dựa CHỈ trên transcript bài giảng dưới đây, mỗi câu gắn với một mốc kiến thức khác nhau. Mỗi câu có 4 lựa chọn A-D, đúng 1 đáp án đúng. groundingSnippetId PHẢI là id một dòng transcript chứa bằng chứng cho đáp án đúng; groundingQuote PHẢI trích gần như nguyên văn từ đúng dòng đó, KHÔNG được bịa nội dung ngoài transcript.\n\nTiêu đề chương: ${chapterTitle}\n\nTranscript (id | timestamp | nội dung):\n${transcriptTable(transcript)}\n\nTrả về JSON đúng schema.`,
-    config: { responseMimeType: 'application/json', responseSchema: quizSchema },
-  });
+  const response = await generateContentWithRetry(
+    {
+      model: MODEL,
+      contents: `Bạn là AI Tutor. Sinh đúng 3 câu hỏi kiểm tra hiểu bài THEO TÌNH HUỐNG ÁP DỤNG kiến thức (không hỏi tái hiện định nghĩa/từ khóa trực tiếp), dựa CHỈ trên transcript bài giảng dưới đây, mỗi câu gắn với một mốc kiến thức khác nhau. Mỗi câu có 4 lựa chọn A-D, đúng 1 đáp án đúng. groundingSnippetId PHẢI là id một dòng transcript chứa bằng chứng cho đáp án đúng; groundingQuote PHẢI trích gần như nguyên văn từ đúng dòng đó, KHÔNG được bịa nội dung ngoài transcript.\n\nTiêu đề chương: ${chapterTitle}\n\nTranscript (id | timestamp | nội dung):\n${transcriptTable(transcript)}\n\nTrả về JSON đúng schema.`,
+      config: { responseMimeType: 'application/json', responseSchema: quizSchema },
+    },
+    'quiz.generateQuestions',
+    3,
+    caseId
+  );
 
   const json = JSON.parse(response.text ?? '{}');
   const snippetById = new Map(transcript.map(s => [s.id, s]));
@@ -159,7 +205,8 @@ export interface GradeResult {
 export async function gradeAnswer(
   question: QuizQuestion,
   selectedKey: 'A' | 'B' | 'C' | 'D',
-  transcript: TranscriptSnippet[]
+  transcript: TranscriptSnippet[],
+  caseId?: string
 ): Promise<GradeResult> {
   const selectedOption = question.options.find(o => o.key === selectedKey);
   const schema = {
@@ -179,11 +226,16 @@ export async function gradeAnswer(
     required: ['isCorrect', 'confidence', 'feedback', 'groundingSnippetId', 'groundingQuote', 'suggestedSnippetIds'],
   };
 
-  const response = await generateContentWithRetry({
-    model: MODEL,
-    contents: `Bạn là AI chấm bài kiểm tra hiểu bài, PHẢI đối chiếu với transcript, không được tự suy diễn ngoài transcript.\n\nCâu hỏi: ${question.title}\nHọc viên chọn (${selectedKey}): ${selectedOption?.text}\nToàn bộ lựa chọn: ${question.options.map(o => `${o.key}. ${o.text}`).join(' | ')}\n\nTranscript (id | timestamp | nội dung):\n${transcriptTable(transcript)}\n\nNhiệm vụ:\n1. Xác định lựa chọn của học viên có đúng bản chất kiến thức theo transcript hay không.\n2. confidence: đặt THẤP (dưới 60) nếu transcript không đủ rõ ràng để phân biệt dứt khoát các lựa chọn, thay vì đoán liều.\n3. groundingSnippetId + groundingQuote: đúng 1 dòng transcript làm bằng chứng chính, trích gần như nguyên văn.\n4. suggestedSnippetIds: 2-3 id dòng transcript liên quan nhất học viên nên xem lại.\n\nTrả về JSON đúng schema.`,
-    config: { responseMimeType: 'application/json', responseSchema: schema },
-  });
+  const response = await generateContentWithRetry(
+    {
+      model: MODEL,
+      contents: `Bạn là AI chấm bài kiểm tra hiểu bài, PHẢI đối chiếu với transcript, không được tự suy diễn ngoài transcript.\n\nCâu hỏi: ${question.title}\nHọc viên chọn (${selectedKey}): ${selectedOption?.text}\nToàn bộ lựa chọn: ${question.options.map(o => `${o.key}. ${o.text}`).join(' | ')}\n\nTranscript (id | timestamp | nội dung):\n${transcriptTable(transcript)}\n\nNhiệm vụ:\n1. Xác định lựa chọn của học viên có đúng bản chất kiến thức theo transcript hay không.\n2. confidence: đặt THẤP (dưới 60) nếu transcript không đủ rõ ràng để phân biệt dứt khoát các lựa chọn, thay vì đoán liều.\n3. groundingSnippetId + groundingQuote: đúng 1 dòng transcript làm bằng chứng chính, trích gần như nguyên văn.\n4. suggestedSnippetIds: 2-3 id dòng transcript liên quan nhất học viên nên xem lại.\n\nTrả về JSON đúng schema.`,
+      config: { responseMimeType: 'application/json', responseSchema: schema },
+    },
+    'quiz.gradeAnswer',
+    3,
+    caseId
+  );
 
   const result = JSON.parse(response.text ?? '{}');
   const confidence = Number(result.confidence ?? 0);
@@ -194,7 +246,8 @@ export async function gradeAnswer(
 export async function tutorChat(
   transcript: TranscriptSnippet[],
   history: { sender: 'user' | 'ai'; text: string }[],
-  message: string
+  message: string,
+  caseId?: string
 ): Promise<string> {
   const systemPreamble = `Bạn là AI Tutor của VinUni đồng hành cùng học viên khóa "AI in Action". CHỈ được trả lời dựa trên transcript bài giảng dưới đây. Nếu câu hỏi nằm ngoài phạm vi transcript, hãy nói rõ rằng bạn không có căn cứ trong bài giảng này và đề nghị học viên liên hệ trợ giảng — KHÔNG được bịa thông tin ngoài transcript. Trả lời ngắn gọn, súc tích, bằng tiếng Việt.\n\nTranscript:\n${transcriptTable(transcript)}`;
 
@@ -208,6 +261,6 @@ export async function tutorChat(
     { role: 'user' as const, parts: [{ text: message }] },
   ];
 
-  const response = await generateContentWithRetry({ model: MODEL, contents });
+  const response = await generateContentWithRetry({ model: MODEL, contents }, 'tutor.chat', undefined, caseId);
   return response.text ?? '';
 }

@@ -174,13 +174,17 @@ app.post('/api/videos/:id/generate-quiz', requireRole('teacher'), async (req, re
 // ---- Quiz sinh từ transcript đưa thẳng vào request (dùng cho bài giảng demo có sẵn) ----
 app.post('/api/quiz/generate', requireAuth, async (req, res) => {
   try {
-    const { chapterTitle, transcript } = req.body as { chapterTitle: string; transcript: TranscriptSnippet[] };
+    const { chapterTitle, transcript, caseId } = req.body as {
+      chapterTitle: string;
+      transcript: TranscriptSnippet[];
+      caseId?: string;
+    };
     if (!Array.isArray(transcript) || transcript.length === 0) {
       res.status(400).json({ error: 'Thiếu transcript của chương học.' });
       return;
     }
 
-    const evaluation = await evaluateEvidence(transcript);
+    const evaluation = await evaluateEvidence(transcript, caseId);
     if (!evaluation.sufficientEvidence) {
       res.json({
         sufficientEvidence: false,
@@ -194,7 +198,7 @@ app.post('/api/quiz/generate', requireAuth, async (req, res) => {
       return;
     }
 
-    const questions = await generateQuizQuestions(chapterTitle, transcript, evaluation.evidenceScore);
+    const questions = await generateQuizQuestions(chapterTitle, transcript, evaluation.evidenceScore, caseId);
     res.json({
       sufficientEvidence: true,
       wordCount: evaluation.wordCount,
@@ -209,16 +213,17 @@ app.post('/api/quiz/generate', requireAuth, async (req, res) => {
 
 app.post('/api/quiz/grade', requireAuth, async (req, res) => {
   try {
-    const { question, selectedKey, transcript } = req.body as {
+    const { question, selectedKey, transcript, caseId } = req.body as {
       question: QuizQuestion;
       selectedKey: 'A' | 'B' | 'C' | 'D';
       transcript: TranscriptSnippet[];
+      caseId?: string;
     };
     if (!question || !selectedKey || !Array.isArray(transcript)) {
       res.status(400).json({ error: 'Thiếu dữ liệu để chấm câu trả lời.' });
       return;
     }
-    const result = await gradeAnswer(question, selectedKey, transcript);
+    const result = await gradeAnswer(question, selectedKey, transcript, caseId);
     res.json(result);
   } catch (err) {
     console.error('[api/quiz/grade]', err);
@@ -228,16 +233,17 @@ app.post('/api/quiz/grade', requireAuth, async (req, res) => {
 
 app.post('/api/tutor/chat', requireAuth, async (req, res) => {
   try {
-    const { transcript, history, message } = req.body as {
+    const { transcript, history, message, caseId } = req.body as {
       transcript: TranscriptSnippet[];
       history: { sender: 'user' | 'ai'; text: string }[];
       message: string;
+      caseId?: string;
     };
     if (!message || !Array.isArray(transcript)) {
       res.status(400).json({ error: 'Thiếu nội dung câu hỏi.' });
       return;
     }
-    const reply = await tutorChat(transcript, Array.isArray(history) ? history : [], message);
+    const reply = await tutorChat(transcript, Array.isArray(history) ? history : [], message, caseId);
     res.json({ reply });
   } catch (err) {
     console.error('[api/tutor/chat]', err);

@@ -129,21 +129,27 @@ export async function transcribeVideoWithGemini(video: VideoRecord): Promise<Tra
     throw new Error(`Gemini không xử lý được file video (trạng thái: ${fileInfo.state ?? 'không rõ'}).`);
   }
 
-  const response = await generateContentWithRetry({
-    model: 'gemini-3.6-flash',
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { fileData: { fileUri: fileInfo.uri, mimeType: fileInfo.mimeType } },
-          {
-            text: 'Nghe kỹ toàn bộ audio trong video này và chép lại thành transcript tiếng Việt, chia thành các đoạn theo từng ý chính, mỗi đoạn kèm mốc thời gian bắt đầu. Ghi lại đúng nguyên văn lời nói, KHÔNG tóm tắt, KHÔNG bịa thêm nội dung không có trong audio. Trả về JSON đúng schema.',
-          },
-        ],
-      },
-    ],
-    config: { responseMimeType: 'application/json', responseSchema: transcriptSchema },
-  });
+  const response = await generateContentWithRetry(
+    {
+      model: 'gemini-3.6-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { fileData: { fileUri: fileInfo.uri, mimeType: fileInfo.mimeType } },
+            {
+              text: 'Nghe kỹ toàn bộ audio trong video này và chép lại thành transcript tiếng Việt, chia thành các đoạn theo từng ý chính, mỗi đoạn kèm mốc thời gian bắt đầu. Ghi lại đúng nguyên văn lời nói, KHÔNG tóm tắt, KHÔNG bịa thêm nội dung không có trong audio. Trả về JSON đúng schema.',
+            },
+          ],
+        },
+      ],
+      config: { responseMimeType: 'application/json', responseSchema: transcriptSchema },
+    },
+    // Xử lý video/audio là request nặng hơn, Gemini hay trả 503 tạm thời hơn các lời gọi text
+    // thuần — tăng số lần thử và độ trễ backoff so với mặc định để đỡ phải upload lại từ đầu.
+    'video.transcribe',
+    6
+  );
 
   const json = JSON.parse(response.text ?? '{}');
   const rawSnippets: any[] = Array.isArray(json.snippets) ? json.snippets : [];
