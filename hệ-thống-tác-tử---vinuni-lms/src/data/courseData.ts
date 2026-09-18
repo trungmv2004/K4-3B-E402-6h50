@@ -85,74 +85,86 @@ export const COURSE_QUESTIONS: QuizQuestion[] = [
   }
 ];
 
+// seconds/timestamp là ước lượng theo tốc độ đọc trung bình (~2,35 từ/giây); vị trí phát THẬT
+// khi demo do trình duyệt tự báo qua sự kiện onstart của Web Speech API (xem useSpeechNarration).
 export const TRANSCRIPT_TIMELINE: TranscriptSnippet[] = [
   {
     id: 't-1',
-    timestamp: '00:15',
-    seconds: 15,
+    timestamp: '00:00',
+    seconds: 0,
     title: 'Giới thiệu 4 mức độ',
     speaker: 'VinUni Instructor',
-    text: 'Trong phần trước, chúng ta đã xem xét ranh giới giữa Chatbot và một tác tử tự chủ thực thụ...',
+    text: 'Trong phần trước, chúng ta đã xem xét ranh giới giữa một chatbot đơn thuần và một tác tử, hay AI Agent, thực thụ. Hôm nay chúng ta sẽ đi sâu vào một khung phân loại gồm bốn mức độ tự chủ, giúp các bạn xác định chính xác một hệ thống có bao nhiêu quyền tự quyết trong hành động. Đây là một phổ, không phải bảng xếp hạng.',
     tag: 'Giới thiệu'
   },
   {
     id: 't-2',
-    timestamp: '01:10',
-    seconds: 70,
+    timestamp: '00:30',
+    seconds: 30,
     title: 'Mức 1: Scripted',
     speaker: 'VinUni Instructor',
-    text: 'Khởi đầu là Mức 1: Trả lời theo kịch bản có sẵn. Toàn bộ câu trả lời được lập trình viên định sẵn qua cây logic if/else.',
+    text: 'Khởi đầu là Mức 1: Trả lời theo kịch bản có sẵn. Toàn bộ câu trả lời được lập trình viên định sẵn qua cây logic if/else. Ví dụ, một tổng đài chăm sóc khách hàng tự động: bấm phím số 1, hệ thống phát đúng đoạn ghi âm đã thu sẵn cho lựa chọn đó. Không có suy luận ngôn ngữ tự nhiên nào diễn ra, và hệ thống không thể xử lý câu hỏi nằm ngoài kịch bản đã vạch sẵn.',
     tag: 'Mức 1',
     relatedQuestionId: 1
   },
   {
     id: 't-3',
-    timestamp: '02:10',
-    seconds: 130,
+    timestamp: '01:05',
+    seconds: 65,
     title: 'Phân biệt Mức 2 và Mức 3',
     speaker: 'VinUni Instructor',
-    text: 'Ở Mức 3, tác tử bắt đầu phản ứng theo ngữ cảnh và có thể chọn gọi công cụ phù hợp với yêu cầu đưa vào.',
+    text: 'Khi trang bị cho hệ thống một mô hình ngôn ngữ lớn để hiểu và phản hồi linh hoạt hơn, chúng ta bước sang Mức 2. Nhưng ranh giới đáng chú ý nhất nằm giữa Mức 2 và Mức 3, bởi ở Mức 3, tác tử bắt đầu phản ứng theo ngữ cảnh và có thể tự chọn gọi công cụ phù hợp với yêu cầu.',
     tag: 'Mức 2 & 3',
     relatedQuestionId: 2
   },
   {
     id: 't-4',
-    timestamp: '02:40',
-    seconds: 160,
+    timestamp: '01:33',
+    seconds: 93,
     title: 'Mức 2: Conversational',
     speaker: 'VinUni Instructor',
-    text: 'Đến Mức 2: Trợ lý hội thoại. Tại đây LLM tiếp nhận câu hỏi linh hoạt, giữ được context đoạn hội thoại ngắn để phản hồi tự nhiên hơn.',
+    text: 'Đến Mức 2: Trợ lý hội thoại. Tại đây LLM tiếp nhận câu hỏi bằng ngôn ngữ tự nhiên, giữ được ngữ cảnh đoạn hội thoại ngắn để phản hồi tự nhiên hơn. Tuy nhiên, giới hạn của Mức 2 là nó chỉ dừng ở việc trò chuyện: có thể tư vấn, giải thích, gợi ý, nhưng không tự đi thực hiện hành động nào ra bên ngoài, ví dụ không tự đặt vé, không tự truy vấn dữ liệu thời gian thực.',
     tag: 'Mức 2'
   },
   {
     id: 't-5',
-    timestamp: '03:15',
-    seconds: 195,
+    timestamp: '02:09',
+    seconds: 129,
     title: 'Trọng tâm Câu 3: Mức 3 vs Mức 4',
     speaker: 'VinUni Instructor',
-    text: '"Bốn mức này giúp xem hệ thống được tự làm đến đâu trong khóa học." Mức 3 phản ứng với yêu cầu nghĩa là người dùng hỏi gì, bot tra cứu công cụ đó. Nó không tự đặt ra lộ trình tiếp theo.',
+    text: 'Bốn mức này giúp xem hệ thống được tự làm đến đâu trong khóa học. Mức 3 phản ứng với yêu cầu nghĩa là người dùng hỏi gì, bot tra cứu công cụ đó. Ví dụ, nếu bạn hỏi về thời tiết hôm nay, nó nhận diện đây là yêu cầu cần dữ liệu thời gian thực, tự động gọi một API thời tiết, rồi trả lời dựa trên kết quả nhận được. Nhưng lưu ý thật kỹ: nó không tự đặt ra lộ trình tiếp theo.',
     tag: 'Trọng tâm Câu 3',
     isImportant: true,
     relatedQuestionId: 3
   },
   {
     id: 't-6',
-    timestamp: '03:42',
-    seconds: 222,
+    timestamp: '02:46',
+    seconds: 166,
     title: 'Mức 4: Autonomous',
     speaker: 'VinUni Instructor',
-    text: 'Ngược lại, ở Mức 4: Theo đuổi mục tiêu, hệ thống tự động sinh kế hoạch nhiều bước (multi-step plan), tự thực thi vòng lặp quan sát - suy luận - hành động (ReAct) cho đến khi đạt kết quả mong muốn.',
+    text: 'Ngược lại, ở Mức 4: Theo đuổi mục tiêu, hệ thống tự động sinh kế hoạch nhiều bước, hay multi-step plan, rồi tự thực thi vòng lặp quan sát, suy luận, hành động, viết tắt ReAct, cho đến khi đạt kết quả mong muốn. Ví dụ, nếu bạn giao một mục tiêu trừu tượng như "hãy tối ưu lịch trình bay và tự đặt vé cho tôi", nó sẽ tự phân rã thành nhiều bước nhỏ: tìm chuyến bay, so sánh giá, kiểm tra lịch, rồi tự đặt vé, và tự thử lại nếu gặp lỗi mà không cần con người mớm lệnh từng bước.',
     tag: 'Mức 4',
     isImportant: true,
     relatedQuestionId: 3
   },
   {
     id: 't-7',
-    timestamp: '04:10 - 04:28',
-    seconds: 250,
+    timestamp: '03:30',
+    seconds: 210,
+    title: 'Ví dụ tổng hợp: Đặt vé máy bay qua 4 mức',
+    speaker: 'VinUni Instructor',
+    text: 'Để dễ hình dung, hãy xét chung một tình huống: đặt vé máy bay. Ở Mức 1, hệ thống chỉ đưa bạn qua một menu bấm phím cố định. Ở Mức 2, bạn trò chuyện tự nhiên để hỏi thông tin, nhưng vẫn phải tự đặt vé. Ở Mức 3, nếu bạn yêu cầu cụ thể "hãy đặt giúp tôi chuyến bay lúc 8 giờ sáng", nó gọi công cụ đặt vé ngay lúc đó. Còn ở Mức 4, bạn chỉ cần giao mục tiêu tổng quát, hệ thống tự lên kế hoạch, tự đặt vé, tự sửa lỗi, không cần bạn hướng dẫn từng bước.',
+    tag: 'Ví dụ tổng hợp',
+    isImportant: true
+  },
+  {
+    id: 't-8',
+    timestamp: '04:15',
+    seconds: 255,
     title: 'Kết luận & Bằng chứng thực tế',
     speaker: 'VinUni Instructor',
-    text: '"Bốn mức này giúp xem hệ thống được tự làm đến đâu trong khóa học, nói đã kiểm tra thì phải có bằng chứng đã làm thực tế."',
+    text: 'Bốn mức này giúp xem hệ thống được tự làm đến đâu trong khóa học, nói đã kiểm tra thì phải có bằng chứng đã làm thực tế. Ngay sau đây, các bạn sẽ làm một bài kiểm tra ngắn để tự đối chiếu xem mình đã nắm được ranh giới giữa các mức độ tự chủ này hay chưa.',
     tag: 'Kết luận',
     isImportant: true
   }

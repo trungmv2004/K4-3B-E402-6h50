@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { Sparkles, X, Send, Bot, User, CheckCircle2 } from 'lucide-react';
+import { TranscriptSnippet } from '../types';
+import { tutorChat } from '../services/api';
 
 interface AiTutorModalProps {
   isOpen: boolean;
   onClose: () => void;
+  transcript: TranscriptSnippet[];
 }
 
-export const AiTutorModal: React.FC<AiTutorModalProps> = ({ isOpen, onClose }) => {
+export const AiTutorModal: React.FC<AiTutorModalProps> = ({ isOpen, onClose, transcript }) => {
   const [messages, setMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string; timestamp: string }>>([
     {
       sender: 'ai',
@@ -25,10 +28,11 @@ export const AiTutorModal: React.FC<AiTutorModalProps> = ({ isOpen, onClose }) =
     'Tại sao hệ thống lại kích hoạt Fallback khi transcript ngắn?'
   ];
 
-  const handleSend = (textToSend?: string) => {
+  const handleSend = async (textToSend?: string) => {
     const q = textToSend || inputVal;
-    if (!q.trim()) return;
+    if (!q.trim() || isTyping) return;
 
+    const history = messages;
     setMessages(prev => [
       ...prev,
       {
@@ -40,18 +44,8 @@ export const AiTutorModal: React.FC<AiTutorModalProps> = ({ isOpen, onClose }) =
     if (!textToSend) setInputVal('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      let reply = '';
-      if (q.includes('Mức 3') && q.includes('Mức 4')) {
-        reply = 'Ở Mức 3 (Phản ứng với yêu cầu), tác tử chỉ gọi Tool khi người dùng đưa ra câu lệnh cụ thể (1 bước phản xạ). Trong khi ở Mức 4 (Theo đuổi mục tiêu), tác tử tự lập kế hoạch nhiều bước (Multi-step Planning), tự thực thi và sửa lỗi liên tục cho đến khi đạt được mục tiêu tổng quát.';
-      } else if (q.includes('Tool') || q.includes('ReAct')) {
-        reply = 'Tool trong ReAct là các công cụ ngoại vi (như API thời tiết, Calculator, Database query, Web Search) mà mô hình LLM quyết định kích hoạt dựa trên suy luận (Thought) rồi hành động (Action) và quan sát kết quả (Observation).';
-      } else if (q.includes('Fallback')) {
-        reply = 'Cơ chế Graceful Fallback của VinUni được kích hoạt khi độ dài transcript dưới 300 từ hoặc điểm bằng chứng dưới 80%. Điều này ngăn chặn việc AI Tutor tự suy diễn hoặc bịa đặt kiến thức không có trong bài giảng (hallucination).';
-      } else {
-        reply = `Cảm ơn câu hỏi của bạn về "${q}". Khung 4 mức độ tự chủ của VinUni nhấn mạnh vào mức độ ủy quyền thực thi có kiểm chứng. Bạn có thể xem lại đoạn [03:15] trong video để nghe giảng viên phân tích chi tiết!`;
-      }
-
+    try {
+      const { reply } = await tutorChat(transcript, history, q);
       setMessages(prev => [
         ...prev,
         {
@@ -60,8 +54,18 @@ export const AiTutorModal: React.FC<AiTutorModalProps> = ({ isOpen, onClose }) =
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
+    } catch (err) {
+      setMessages(prev => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: err instanceof Error ? err.message : 'AI Tutor không phản hồi được lúc này. Vui lòng thử lại.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    } finally {
       setIsTyping(false);
-    }, 900);
+    }
   };
 
   return (

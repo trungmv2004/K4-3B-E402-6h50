@@ -1,19 +1,25 @@
 import React from 'react';
 import { ScreenMode } from '../types';
-import { Sparkles, ArrowLeft, Send, CheckCircle2, AlertTriangle, FileCheck, Layers } from 'lucide-react';
+import { Sparkles, ArrowLeft, Send, CheckCircle2, AlertTriangle, FileCheck, Layers, LogOut, LibraryBig } from 'lucide-react';
 
 interface TopBarProps {
   currentScreen: ScreenMode;
   onSelectScreen: (screen: ScreenMode) => void;
   onOpenAiModal: () => void;
   onOpenFeedbackModal: () => void;
+  studentName?: string;
+  onBackToLibrary?: () => void;
+  onLogout?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
   currentScreen,
   onSelectScreen,
   onOpenAiModal,
-  onOpenFeedbackModal
+  onOpenFeedbackModal,
+  studentName,
+  onBackToLibrary,
+  onLogout
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 z-30 shrink-0 select-none shadow-xs">
@@ -91,12 +97,33 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span className="hidden sm:inline">Gửi yêu cầu</span>
           </button>
 
+          {onBackToLibrary && (
+            <button
+              onClick={onBackToLibrary}
+              title="Đổi bài giảng"
+              className="flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900 px-2 py-1.5 rounded hover:bg-slate-100 transition-colors"
+            >
+              <LibraryBig className="w-3.5 h-3.5 text-slate-500" />
+              <span className="hidden sm:inline">Đổi bài giảng</span>
+            </button>
+          )}
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              title="Đăng xuất"
+              className="flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900 px-2 py-1.5 rounded hover:bg-slate-100 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5 text-slate-500" />
+            </button>
+          )}
+
           {/* User Avatar */}
           <div
             className="w-8 h-8 rounded-full bg-blue-100 border border-blue-200 text-blue-800 font-bold flex items-center justify-center text-xs ring-2 ring-white shadow-xs cursor-pointer"
-            title="Học viên: Nguyễn Văn A (VinUni)"
+            title={studentName ? `Học viên: ${studentName}` : 'Học viên'}
           >
-            N
+            {studentName ? studentName.charAt(0).toUpperCase() : 'N'}
           </div>
         </div>
       </div>

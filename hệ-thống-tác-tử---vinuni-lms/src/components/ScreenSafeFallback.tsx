@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { FALLBACK_AUDIT_DATA } from '../data/courseData';
-import { 
+import { FallbackAuditData } from '../types';
+import {
   AlertTriangle, 
   CheckCircle2, 
   ArrowRight, 
@@ -16,11 +16,13 @@ import {
 } from 'lucide-react';
 
 interface ScreenSafeFallbackProps {
+  auditData: FallbackAuditData;
   onUnlockNextLesson: () => void;
   onScanSlides?: () => void;
 }
 
 export const ScreenSafeFallback: React.FC<ScreenSafeFallbackProps> = ({
+  auditData,
   onUnlockNextLesson,
   onScanSlides
 }) => {
@@ -67,13 +69,13 @@ export const ScreenSafeFallback: React.FC<ScreenSafeFallbackProps> = ({
           <div className="flex items-center justify-between text-xs text-slate-500">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-semibold">
-                {FALLBACK_AUDIT_DATA.phase}
+                {auditData.phase}
               </span>
-              <span>{FALLBACK_AUDIT_DATA.stageName}</span>
+              <span>{auditData.stageName}</span>
             </div>
             <span className="inline-flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-              {FALLBACK_AUDIT_DATA.systemStatus}
+              {auditData.systemStatus}
             </span>
           </div>
 
@@ -124,13 +126,13 @@ export const ScreenSafeFallback: React.FC<ScreenSafeFallbackProps> = ({
                 <div>
                   <span className="text-xs text-slate-500 font-medium">Độ dài Transcript thực</span>
                   <div className="text-xl font-bold text-red-600 mt-1">
-                    {FALLBACK_AUDIT_DATA.wordCount} từ
+                    {auditData.wordCount} từ
                   </div>
                 </div>
                 <div className="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200 flex items-center justify-between">
                   <span>Ngưỡng tối thiểu:</span>
                   <span className="font-semibold text-slate-700">
-                    {FALLBACK_AUDIT_DATA.minWordThreshold} từ
+                    {auditData.minWordThreshold} từ
                   </span>
                 </div>
               </div>
@@ -145,16 +147,16 @@ export const ScreenSafeFallback: React.FC<ScreenSafeFallbackProps> = ({
                     </span>
                   </div>
                   <div className="text-xl font-bold text-amber-600 mt-1">
-                    {FALLBACK_AUDIT_DATA.evidenceScore}%{' '}
+                    {auditData.evidenceScore}%{' '}
                     <span className="text-xs text-slate-400 font-normal">
-                      / Yêu cầu {FALLBACK_AUDIT_DATA.evidenceRequired}%
+                      / Yêu cầu {auditData.evidenceRequired}%
                     </span>
                   </div>
                 </div>
                 <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mt-2">
                   <div
                     className="bg-amber-500 h-full rounded-full"
-                    style={{ width: `${FALLBACK_AUDIT_DATA.evidenceScore}%` }}
+                    style={{ width: `${auditData.evidenceScore}%` }}
                   ></div>
                 </div>
               </div>
@@ -164,11 +166,11 @@ export const ScreenSafeFallback: React.FC<ScreenSafeFallbackProps> = ({
                 <div>
                   <span className="text-xs text-emerald-800 font-medium">Chế độ áp dụng tự động</span>
                   <div className="text-lg font-bold text-emerald-700 mt-1">
-                    {FALLBACK_AUDIT_DATA.appliedMode}
+                    {auditData.appliedMode}
                   </div>
                 </div>
                 <div className="text-xs text-emerald-700 mt-2 pt-2 border-t border-emerald-200/80 font-medium">
-                  ✓ {FALLBACK_AUDIT_DATA.academicBenefit}
+                  ✓ {auditData.academicBenefit}
                 </div>
               </div>
             </div>
@@ -254,12 +256,12 @@ export const ScreenSafeFallback: React.FC<ScreenSafeFallbackProps> = ({
             </div>
 
             <div className="mt-3 font-mono text-xs leading-relaxed text-slate-300 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
-              <p className="italic text-slate-400">{FALLBACK_AUDIT_DATA.transcriptSample}</p>
+              <p className="italic text-slate-400">{auditData.transcriptSample}</p>
             </div>
 
             <div className="mt-3 flex items-center gap-2 text-[11px] text-slate-400">
               <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span>{FALLBACK_AUDIT_DATA.aiReasoning}</span>
+              <span>{auditData.aiReasoning}</span>
             </div>
           </section>
 

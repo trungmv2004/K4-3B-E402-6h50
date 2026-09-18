@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QuizQuestion } from '../types';
-import { COURSE_QUESTIONS } from '../data/courseData';
-import { 
+import { useSpeechNarration } from '../hooks/useSpeechNarration';
+import {
   Sparkles, 
   Clock, 
   Video, 
@@ -17,21 +17,28 @@ import {
 } from 'lucide-react';
 
 interface ScreenQuizTakingProps {
-  onSubmitQuiz: () => void;
+  questions: QuizQuestion[];
+  onSubmitQuiz: (answeredQuestions: QuizQuestion[]) => void;
   onPrevScreen: () => void;
 }
 
 export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
+  questions: initialQuestions,
   onSubmitQuiz,
   onPrevScreen
 }) => {
-  const [questions, setQuestions] = useState<QuizQuestion[]>(COURSE_QUESTIONS);
-  const [currentIndex, setCurrentIndex] = useState(1); // Default to Question 2 (Index 1) as seen in Image 1
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [audioProgress, setAudioProgress] = useState(0);
+  const [questions, setQuestions] = useState<QuizQuestion[]>(initialQuestions);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const narration = useSpeechNarration();
   const [secondsRemaining, setSecondsRemaining] = useState(582); // 09:42 = 582s
 
   const currentQ = questions[currentIndex];
+
+  // Bộ câu hỏi có thể thay đổi giữa các lượt (AI sinh mới khi làm lại bài), nên đồng bộ lại state cục bộ.
+  useEffect(() => {
+    setQuestions(initialQuestions);
+    setCurrentIndex(0);
+  }, [initialQuestions]);
 
   // Timer countdown simulation
   useEffect(() => {
@@ -47,22 +54,13 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Simulated audio playback for "Nghe lại đoạn này"
-  useEffect(() => {
-    let interval: any;
-    if (isPlayingAudio) {
-      interval = setInterval(() => {
-        setAudioProgress(prev => {
-          if (prev >= 100) {
-            setIsPlayingAudio(false);
-            return 0;
-          }
-          return prev + 5;
-        });
-      }, 300);
+  const toggleGroundingAudio = () => {
+    if (narration.isPlaying) {
+      narration.stop();
+    } else {
+      narration.speak([{ id: `question-${currentQ.id}`, text: currentQ.groundingQuote }]);
     }
-    return () => clearInterval(interval);
-  }, [isPlayingAudio]);
+  };
 
   const handleSelectOption = (key: 'A' | 'B' | 'C' | 'D') => {
     setQuestions(prev =>
@@ -138,13 +136,14 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
 
               {/* Audio Listen Button */}
               <button
-                onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                className="shrink-0 ml-3 inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-white border border-blue-200 hover:bg-blue-50 rounded-lg shadow-xs transition cursor-pointer"
+                onClick={toggleGroundingAudio}
+                disabled={!narration.isSupported}
+                className="shrink-0 ml-3 inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-white border border-blue-200 hover:bg-blue-50 rounded-lg shadow-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {isPlayingAudio ? (
+                {narration.isPlaying ? (
                   <>
                     <Square className="w-3.5 h-3.5 text-blue-600 fill-blue-600" />
-                    <span>Dừng audio ({audioProgress}%)</span>
+                    <span>Dừng audio</span>
                   </>
                 ) : (
                   <>
@@ -155,17 +154,10 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
               </button>
             </div>
 
-            {isPlayingAudio && (
+            {narration.isPlaying && (
               <div className="mt-2.5 pt-2 border-t border-amber-200/60">
-                <div className="flex items-center justify-between text-[10px] text-amber-900 font-mono mb-1">
-                  <span>Đang phát giọng đọc giảng viên VinUni [{currentQ.groundingTimestamp}]</span>
-                  <span>{audioProgress}%</span>
-                </div>
-                <div className="w-full bg-amber-200 h-1 rounded-full overflow-hidden">
-                  <div
-                    className="bg-blue-600 h-full transition-all duration-300 rounded-full"
-                    style={{ width: `${audioProgress}%` }}
-                  ></div>
+                <div className="flex items-center justify-between text-[10px] text-amber-900 font-mono">
+                  <span>▶ Đang phát giọng đọc AI [{currentQ.groundingTimestamp}]</span>
                 </div>
               </div>
             )}
@@ -183,24 +175,7 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
             </div>
 
             {/* Question Content */}
-            <h3 className="text-sm font-semibold text-slate-900 leading-normal">
-              {currentQ.id === 2 ? (
-                <>
-                  Sự khác biệt cốt lõi giữa{' '}
-                  <span className="text-red-700 font-bold">Mức 1 (Trả lời theo kịch bản)</span> và{' '}
-                  <span className="text-red-700 font-bold">Mức 3 (Phản ứng với yêu cầu)</span> trong mô
-                  hình hệ thống AI Agent được giảng dạy là gì?
-                </>
-              ) : currentQ.id === 3 ? (
-                <>
-                  Sự khác nhau bản chất giữa{' '}
-                  <span className="text-red-700 font-bold">Tác tử Mức 3 (Phản ứng)</span> và{' '}
-                  <span className="text-red-700 font-bold">Mức 4 (Theo đuổi mục tiêu)</span> là gì?
-                </>
-              ) : (
-                currentQ.title
-              )}
-            </h3>
+            <h3 className="text-sm font-semibold text-slate-900 leading-normal">{currentQ.title}</h3>
 
             {/* Diagram Reference Visual Box (Matching Image 1) */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5">
@@ -324,7 +299,7 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
                   </button>
                 ) : (
                   <button
-                    onClick={onSubmitQuiz}
+                    onClick={() => onSubmitQuiz(questions)}
                     className="inline-flex items-center space-x-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition cursor-pointer"
                   >
                     <span>Nộp bài kiểm tra</span>

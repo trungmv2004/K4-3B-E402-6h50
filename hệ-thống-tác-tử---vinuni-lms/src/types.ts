@@ -24,6 +24,7 @@ export interface QuizQuestion {
   groundingTimestamp: string;
   groundingMatchPercent: number;
   groundingQuote: string;
+  groundingSnippetId?: string;
   audioSeconds?: number;
   diagramTitle?: string;
   diagramSubtitle?: string;
@@ -37,6 +38,55 @@ export interface QuizQuestion {
   aiDiagnosticRemark?: string;
 }
 
+// Trả về từ /api/quiz/generate khi transcript không đủ căn cứ kiến thức để sinh quiz an toàn.
+export interface EvidenceGateResult {
+  sufficientEvidence: false;
+  wordCount: number;
+  minWordThreshold: number;
+  evidenceScore: number;
+  evidenceRequired: number;
+  reasoning: string;
+  transcriptSample: string;
+}
+
+export type QuizGenerationResult =
+  | { sufficientEvidence: true; wordCount: number; evidenceScore: number; questions: QuizQuestion[] }
+  | EvidenceGateResult;
+
+// Dữ liệu hiển thị đầy đủ cho màn hình Graceful Fallback (phần chrome tĩnh + phần AI quyết định).
+export interface FallbackAuditData {
+  phase: string;
+  stageName: string;
+  systemStatus: string;
+  wordCount: number;
+  minWordThreshold: number;
+  evidenceScore: number;
+  evidenceRequired: number;
+  appliedMode: string;
+  academicBenefit: string;
+  transcriptSample: string;
+  aiReasoning: string;
+}
+
+// Kết quả đối chiếu một câu trả lời của học viên với transcript, do AI quyết định.
+export interface GradedAnswer {
+  questionId: number;
+  selectedKey: 'A' | 'B' | 'C' | 'D';
+  isCorrect: boolean;
+  confidence: number;
+  needsReview: boolean;
+  feedback: string;
+  groundingSnippetId: string;
+  groundingQuote: string;
+  suggestedSnippetIds: string[];
+}
+
+export interface ChatMessage {
+  sender: 'user' | 'ai';
+  text: string;
+  timestamp: string;
+}
+
 export interface TranscriptSnippet {
   id: string;
   timestamp: string;
@@ -47,4 +97,40 @@ export interface TranscriptSnippet {
   tag?: string;
   isImportant?: boolean;
   relatedQuestionId?: number;
+}
+
+export type Role = 'teacher' | 'student';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+}
+
+export type VideoStatus =
+  | 'uploaded'
+  | 'transcribing'
+  | 'transcribed'
+  | 'transcribe_failed'
+  | 'insufficient_evidence'
+  | 'quiz_generating'
+  | 'quiz_ready'
+  | 'quiz_failed';
+
+// Bài giảng do giáo viên upload: AI (Gemini) nghe video lấy transcript rồi sinh quiz từ đó.
+export interface VideoRecord {
+  id: string;
+  title: string;
+  filename: string;
+  mimeType: string;
+  uploadedByUserId: string;
+  uploadedByName: string;
+  createdAt: string;
+  status: VideoStatus;
+  errorMessage?: string;
+  transcript?: TranscriptSnippet[];
+  quiz?: QuizQuestion[];
+  evidenceScore?: number;
+  wordCount?: number;
 }

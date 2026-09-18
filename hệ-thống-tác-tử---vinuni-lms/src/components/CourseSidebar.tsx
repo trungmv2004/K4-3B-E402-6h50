@@ -93,7 +93,7 @@ export const CourseSidebar: React.FC<CourseSidebarProps> = ({
                 </div>
                 {currentScreen === 'video-completion' ? (
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded shrink-0">
-                    Đã xong 4:28
+                    Đã xong 4:41
                   </span>
                 ) : currentScreen === 'quiz-taking' ? (
                   <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded shrink-0">
