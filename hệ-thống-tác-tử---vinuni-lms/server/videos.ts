@@ -163,7 +163,7 @@ export async function transcribeVideoWithGemini(video: VideoRecord): Promise<Tra
 
   const response = await generateContentWithRetry(
     {
-      model: 'gemini-3.6-flash',
+      model: 'openai/gpt-oss-20b',
       contents: [
         {
           role: 'user',
