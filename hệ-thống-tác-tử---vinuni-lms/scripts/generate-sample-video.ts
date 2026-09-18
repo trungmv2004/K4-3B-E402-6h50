@@ -14,7 +14,7 @@ const OUT_DIR = path.resolve(__dirname, '../sample-assets');
 const SAMPLE_RATE = 24000;
 const BYTES_PER_SAMPLE = 2;
 const VOICE_NAME = 'Kore';
-const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
+const TTS_MODEL = 'gemini-3.6-flash-preview-tts';
 
 const SAMPLE_TEXT = `Xin chào các bạn. Trong phần trước, chúng ta đã xem xét ranh giới giữa một chatbot đơn thuần và một tác tử, hay AI Agent, thực thụ. Hôm nay chúng ta sẽ đi sâu vào một khung phân loại gồm bốn mức độ tự chủ, giúp các bạn xác định chính xác một hệ thống có bao nhiêu quyền tự quyết trong hành động. Đây là một phổ, không phải bảng xếp hạng.
 

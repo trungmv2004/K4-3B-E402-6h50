@@ -49,9 +49,29 @@ export interface EvidenceGateResult {
   transcriptSample: string;
 }
 
-export type QuizGenerationResult =
-  | { sufficientEvidence: true; wordCount: number; evidenceScore: number; questions: QuizQuestion[] }
+// Câu hỏi gửi cho học viên khi đang làm bài: KHÔNG chứa đáp án chuẩn, lời giải thích hay căn cứ transcript.
+export type PublicQuizQuestion = Omit<
+  QuizQuestion,
+  | 'correctAnswer'
+  | 'explanation'
+  | 'groundingTimestamp'
+  | 'groundingMatchPercent'
+  | 'groundingQuote'
+  | 'groundingSnippetId'
+  | 'audioSeconds'
+  | 'aiDiagnosticRemark'
+>;
+
+// Trả về từ /api/quiz/start: phiên làm bài do máy chủ giữ đáp án, hoặc kết quả cổng căn cứ khi transcript không đủ.
+export type StartQuizResult =
+  | { sufficientEvidence: true; quizId: string; wordCount: number; evidenceScore: number; questions: PublicQuizQuestion[] }
   | EvidenceGateResult;
+
+// Trả về từ /api/quiz/submit: máy chủ chấm bài rồi mới công bố đáp án và căn cứ.
+export interface SubmitQuizResult {
+  questions: QuizQuestion[];
+  results: GradedAnswer[];
+}
 
 // Dữ liệu hiển thị đầy đủ cho màn hình Graceful Fallback (phần chrome tĩnh + phần AI quyết định).
 export interface FallbackAuditData {
@@ -71,7 +91,7 @@ export interface FallbackAuditData {
 // Kết quả đối chiếu một câu trả lời của học viên với transcript, do AI quyết định.
 export interface GradedAnswer {
   questionId: number;
-  selectedKey: 'A' | 'B' | 'C' | 'D';
+  selectedKey: 'A' | 'B' | 'C' | 'D' | null; // null = học viên bỏ trống câu này
   isCorrect: boolean;
   confidence: number;
   needsReview: boolean;
@@ -115,6 +135,7 @@ export type VideoStatus =
   | 'transcribe_failed'
   | 'insufficient_evidence'
   | 'quiz_generating'
+  | 'quiz_review'
   | 'quiz_ready'
   | 'quiz_failed';
 
@@ -133,4 +154,54 @@ export interface VideoRecord {
   quiz?: QuizQuestion[];
   evidenceScore?: number;
   wordCount?: number;
+  quizCount?: number; // học viên chỉ thấy số câu, không nhận nội dung quiz/đáp án
+}
+
+// Tiến độ học của một học viên với một bài giảng, lưu ở máy chủ để không mất khi tải lại trang.
+export interface LectureProgress {
+  lectureId: string;
+  attempts: number;
+  bestScorePercent: number;
+  lastScorePercent: number;
+  completed: boolean;
+  lastAttemptAt?: string;
+  completedAt?: string;
+  viewedAt?: string;
+}
+
+// ---- Báo cáo kết quả lớp (giảng viên) ----
+export interface StudentLectureStat {
+  userId: string;
+  name: string;
+  email: string;
+  viewed: boolean;
+  viewedAt?: string;
+  attempts: number;
+  bestScorePercent: number;
+  lastScorePercent: number;
+  completed: boolean;
+}
+
+export interface HardQuestionStat {
+  title: string;
+  attempts: number;
+  wrongCount: number;
+  wrongPercent: number;
+}
+
+export interface LectureReport {
+  lectureId: string;
+  title: string;
+  kind: 'quiz' | 'exempt';
+  students: StudentLectureStat[];
+  viewedCount: number;
+  attemptedCount: number;
+  completedCount: number;
+  avgBestScorePercent: number | null;
+  hardestQuestions: HardQuestionStat[];
+}
+
+export interface ClassReport {
+  totalStudents: number;
+  lectures: LectureReport[];
 }

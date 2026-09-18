@@ -5,12 +5,25 @@ import {
   FileText,
   CheckCircle2,
   AlertTriangle,
+  BarChart3,
+  BookmarkCheck,
+  Eye,
   Loader2,
   LogOut,
   Video as VideoIcon,
 } from 'lucide-react';
 import { User, VideoRecord } from '../types';
-import { generateQuizForVideo, listVideos, logout, transcribeVideo, uploadVideo } from '../services/api';
+import {
+  generateQuizForVideo,
+  listVideos,
+  logout,
+  markVideoAsIntro,
+  transcribeVideo,
+  unpublishQuiz,
+  uploadVideo,
+} from '../services/api';
+import { QuizEditor } from './QuizEditor';
+import { ClassReportView } from './ClassReportView';
 
 interface TeacherDashboardProps {
   user: User;
@@ -22,8 +35,9 @@ const STATUS_LABEL: Record<VideoRecord['status'], { text: string; className: str
   transcribing: { text: 'AI đang nghe video...', className: 'bg-blue-50 text-blue-700 border-blue-200' },
   transcribed: { text: 'Đã có transcript · Chưa sinh quiz', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
   transcribe_failed: { text: 'Trích transcript thất bại', className: 'bg-rose-50 text-rose-700 border-rose-200' },
-  insufficient_evidence: { text: 'Chưa đủ căn cứ để sinh quiz', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  insufficient_evidence: { text: 'Video giới thiệu — học viên được miễn quiz', className: 'bg-amber-50 text-amber-700 border-amber-200' },
   quiz_generating: { text: 'AI đang sinh quiz...', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  quiz_review: { text: 'Quiz chờ duyệt — học viên chưa thấy', className: 'bg-violet-50 text-violet-700 border-violet-200' },
   quiz_ready: { text: 'Đã sẵn sàng cho học viên', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   quiz_failed: { text: 'Sinh quiz thất bại', className: 'bg-rose-50 text-rose-700 border-rose-200' },
 };
@@ -37,6 +51,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, onLogg
   const [busyVideoId, setBusyVideoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [tab, setTab] = useState<'lectures' | 'report'>('lectures');
 
   const refresh = async () => {
     try {
@@ -52,6 +67,19 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, onLogg
   useEffect(() => {
     refresh();
   }, []);
+
+  // Pipeline chạy nền sau khi tải lên: tự cập nhật danh sách khi còn video đang được AI xử lý.
+  const hasRunningJob = videos.some(
+    v =>
+      v.status === 'transcribing' ||
+      v.status === 'quiz_generating' ||
+      (v.status === 'uploaded' && Date.now() - new Date(v.createdAt).getTime() < 60_000)
+  );
+  useEffect(() => {
+    if (!hasRunningJob) return;
+    const timer = setInterval(refresh, 4000);
+    return () => clearInterval(timer);
+  }, [hasRunningJob]);
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +126,32 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, onLogg
     }
   };
 
+  const handleUnpublish = async (id: string) => {
+    setBusyVideoId(id);
+    setError(null);
+    try {
+      await unpublishQuiz(id);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không rút được quiz về bản nháp.');
+    } finally {
+      setBusyVideoId(null);
+    }
+  };
+
+  const handleMarkIntro = async (id: string) => {
+    setBusyVideoId(id);
+    setError(null);
+    try {
+      await markVideoAsIntro(id);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không đánh dấu được video giới thiệu.');
+    } finally {
+      setBusyVideoId(null);
+    }
+  };
+
   return (
     <div className="h-screen w-full overflow-y-auto bg-slate-50">
       <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-10">
@@ -122,12 +176,39 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, onLogg
           <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{error}</div>
         )}
 
+        <div className="flex items-center gap-1 border-b border-slate-200">
+          {([
+            { id: 'lectures', label: 'Bài giảng', icon: VideoIcon },
+            { id: 'report', label: 'Kết quả lớp', icon: BarChart3 },
+          ] as const).map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 -mb-px transition cursor-pointer ${
+                tab === t.id
+                  ? 'border-blue-600 text-blue-700'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <t.icon className="w-3.5 h-3.5" />
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'report' && <ClassReportView />}
+
+        {tab === 'lectures' && (
+        <>
         {/* Upload Form */}
         <section className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
           <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
             <UploadCloud className="w-4 h-4 text-blue-600" />
             Tải video bài giảng lên
           </h2>
+          <p className="text-[11px] text-slate-400 -mt-2 mb-3">
+            Sau khi tải lên, AI tự động trích transcript rồi sinh quiz. Quiz được để ở trạng thái chờ duyệt để bạn kiểm tra trước khi phát hành.
+          </p>
           <form onSubmit={handleUpload} className="space-y-3">
             <input
               type="text"
@@ -182,6 +263,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, onLogg
                       <span
                         className={`inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusInfo.className}`}
                       >
+                        {(video.status === 'transcribing' || video.status === 'quiz_generating') && (
+                          <Loader2 className="inline w-3 h-3 animate-spin mr-1 -mt-0.5" />
+                        )}
                         {statusInfo.text}
                       </span>
                       {video.errorMessage && (video.status === 'transcribe_failed' || video.status === 'quiz_failed') && (
@@ -213,6 +297,31 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, onLogg
                       >
                         {isBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                         <span>Sinh Quiz</span>
+                      </button>
+                    )}
+                    {video.status === 'quiz_review' && (
+                      <button
+                        onClick={() => setExpandedId(video.id)}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        <Eye className="w-3 h-3" />
+                        <span>Duyệt quiz</span>
+                      </button>
+                    )}
+                    {(video.status === 'uploaded' ||
+                      video.status === 'transcribed' ||
+                      video.status === 'transcribe_failed' ||
+                      video.status === 'quiz_failed' ||
+                      video.status === 'quiz_review' ||
+                      video.status === 'quiz_ready') && (
+                      <button
+                        onClick={() => handleMarkIntro(video.id)}
+                        disabled={isBusy}
+                        title="Học viên xem video xong sẽ được miễn quiz và cộng điểm chuyên cần"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:opacity-50 px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        <BookmarkCheck className="w-3 h-3" />
+                        <span>Video giới thiệu</span>
                       </button>
                     )}
                     {(video.transcript || video.quiz) && (
@@ -250,11 +359,20 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, onLogg
                       </div>
                     )}
 
-                    {video.quiz && (
+                    {video.quiz && video.status === 'quiz_review' && (
+                      <QuizEditor
+                        key={`${video.id}-${video.status}`}
+                        video={video}
+                        onChanged={refresh}
+                        onError={setError}
+                      />
+                    )}
+
+                    {video.quiz && video.status !== 'quiz_review' && (
                       <div>
                         <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          Quiz đã sinh ({video.quiz.length} câu) — học viên có thể làm bài này
+                          Quiz đã phát hành ({video.quiz.length} câu) — học viên có thể làm bài này
                         </h4>
                         <div className="space-y-2">
                           {video.quiz.map(q => (
@@ -268,6 +386,15 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, onLogg
                             </div>
                           ))}
                         </div>
+                        {video.status === 'quiz_ready' && (
+                          <button
+                            onClick={() => handleUnpublish(video.id)}
+                            disabled={isBusy}
+                            className="mt-2 text-[11px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 disabled:opacity-50 px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                          >
+                            Rút về bản nháp để sửa
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -276,6 +403,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, onLogg
             );
           })}
         </section>
+        </>
+        )}
       </main>
     </div>
   );

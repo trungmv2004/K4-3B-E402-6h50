@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { Type, GoogleGenAI } from '@google/genai';
 import { logGeminiCall, stringifyContents } from './logging';
 import { readJsonFile, writeJsonFile } from './db';
+import { MODEL, withModelFallback } from './gemini';
 import type { QuizQuestion, TranscriptSnippet } from '../src/types';
 
 // videos.ts dùng Gemini trực tiếp cho tính năng upload/transcribe video.
@@ -23,21 +24,19 @@ async function generateContentWithRetry(
 ) {
   if (!geminiAi) throw new Error('GEMINI_API_KEY chưa được cấu hình.');
   const promptText = stringifyContents(params.contents);
-  for (let attempt = 1; attempt <= attempts; attempt++) {
+  const client = geminiAi;
+  return withModelFallback(attempts, async (model, attempt) => {
     const startedAt = Date.now();
     try {
-      const response = await geminiAi.models.generateContent(params);
-      logGeminiCall({ timestamp: new Date().toISOString(), context, model: String(params.model), attempt, latencyMs: Date.now() - startedAt, status: 'ok', promptText, rawResponseText: response.text, caseId });
+      const response = await client.models.generateContent({ ...params, model });
+      logGeminiCall({ timestamp: new Date().toISOString(), context, model, attempt, latencyMs: Date.now() - startedAt, status: 'ok', promptText, rawResponseText: response.text, caseId });
       return response;
     } catch (err) {
-      const status = (err as { status?: number })?.status;
       const errorMessage = err instanceof Error ? err.message : String(err);
-      logGeminiCall({ timestamp: new Date().toISOString(), context, model: String(params.model), attempt, latencyMs: Date.now() - startedAt, status: 'error', promptText, errorMessage, caseId });
-      if (status !== 503 || attempt === attempts) throw err;
-      await new Promise(resolve => setTimeout(resolve, attempt * 800));
+      logGeminiCall({ timestamp: new Date().toISOString(), context, model, attempt, latencyMs: Date.now() - startedAt, status: 'error', promptText, errorMessage, caseId });
+      throw err;
     }
-  }
-  throw new Error('unreachable');
+  });
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -53,6 +52,7 @@ export type VideoStatus =
   | 'transcribe_failed'
   | 'insufficient_evidence'
   | 'quiz_generating'
+  | 'quiz_review'
   | 'quiz_ready'
   | 'quiz_failed';
 
@@ -163,7 +163,7 @@ export async function transcribeVideoWithGemini(video: VideoRecord): Promise<Tra
 
   const response = await generateContentWithRetry(
     {
-      model: 'openai/gpt-oss-20b',
+      model: MODEL,
       contents: [
         {
           role: 'user',

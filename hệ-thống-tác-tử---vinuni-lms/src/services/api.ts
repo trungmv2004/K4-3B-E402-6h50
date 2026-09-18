@@ -1,8 +1,11 @@
 import {
   ChatMessage,
-  GradedAnswer,
-  QuizGenerationResult,
+  ClassReport,
+  LectureProgress,
+  PublicQuizQuestion,
   QuizQuestion,
+  StartQuizResult,
+  SubmitQuizResult,
   TranscriptSnippet,
   User,
   VideoRecord,
@@ -32,19 +35,16 @@ async function getJson<T>(url: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export function generateQuiz(chapterTitle: string, transcript: TranscriptSnippet[]) {
-  return postJson<QuizGenerationResult>('/api/quiz/generate', { chapterTitle, transcript });
+export function startQuiz(
+  source: { videoId: string } | { lectureId: string; chapterTitle: string; transcript: TranscriptSnippet[] }
+) {
+  return postJson<StartQuizResult>('/api/quiz/start', source);
 }
 
-export function gradeAnswer(
-  question: QuizQuestion,
-  selectedKey: 'A' | 'B' | 'C' | 'D',
-  transcript: TranscriptSnippet[]
-) {
-  return postJson<Omit<GradedAnswer, 'questionId' | 'selectedKey'>>('/api/quiz/grade', {
-    question,
-    selectedKey,
-    transcript,
+export function submitQuiz(quizId: string, questions: PublicQuizQuestion[]) {
+  return postJson<SubmitQuizResult>('/api/quiz/submit', {
+    quizId,
+    answers: questions.map(q => ({ questionId: q.id, selectedKey: q.userAnswer ?? null })),
   });
 }
 
@@ -98,10 +98,62 @@ export async function transcribeVideo(id: string): Promise<VideoRecord> {
   return video;
 }
 
+export async function markVideoAsIntro(id: string): Promise<VideoRecord> {
+  const { video } = await postJson<{ video: VideoRecord }>(`/api/videos/${id}/mark-intro`, {});
+  return video;
+}
+
 export async function generateQuizForVideo(id: string): Promise<VideoRecord> {
   const result = await postJson<{ video: VideoRecord; sufficientEvidence: boolean; reasoning?: string }>(
     `/api/videos/${id}/generate-quiz`,
     {}
   );
   return result.video;
+}
+
+// ---- Tiến độ học ----
+export async function fetchProgress(): Promise<LectureProgress[]> {
+  const { progress } = await getJson<{ progress: LectureProgress[] }>('/api/progress');
+  return progress;
+}
+
+export async function completeLesson(lectureId: string): Promise<void> {
+  await postJson('/api/progress/complete', { lectureId });
+}
+
+export async function markLectureViewed(lectureId: string): Promise<void> {
+  await postJson('/api/progress/view', { lectureId });
+}
+
+// ---- Giảng viên: báo cáo lớp và duyệt quiz ----
+export function fetchClassReport() {
+  return getJson<ClassReport>('/api/teacher/report');
+}
+
+async function sendJson<T>(method: 'PUT', url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.error || `Yêu cầu tới ${url} thất bại (HTTP ${res.status}).`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function saveQuizEdits(id: string, quiz: QuizQuestion[]): Promise<VideoRecord> {
+  const { video } = await sendJson<{ video: VideoRecord }>('PUT', `/api/videos/${id}/quiz`, { quiz });
+  return video;
+}
+
+export async function publishQuiz(id: string): Promise<VideoRecord> {
+  const { video } = await postJson<{ video: VideoRecord }>(`/api/videos/${id}/publish`, {});
+  return video;
+}
+
+export async function unpublishQuiz(id: string): Promise<VideoRecord> {
+  const { video } = await postJson<{ video: VideoRecord }>(`/api/videos/${id}/unpublish`, {});
+  return video;
 }

@@ -9,7 +9,7 @@ import {
   Sparkles,
   Search,
   FileText,
-  ShieldAlert
+  ArrowRight
 } from 'lucide-react';
 
 interface ScreenRemediationProps {
@@ -17,7 +17,7 @@ interface ScreenRemediationProps {
   gradedAnswers: GradedAnswer[];
   transcript: TranscriptSnippet[];
   onRetakeQuiz: () => void;
-  onGoToFallback: () => void;
+  onCompleteLesson: () => void;
 }
 
 const PASS_THRESHOLD_PERCENT = 70;
@@ -27,7 +27,7 @@ export const ScreenRemediation: React.FC<ScreenRemediationProps> = ({
   gradedAnswers,
   transcript,
   onRetakeQuiz,
-  onGoToFallback
+  onCompleteLesson
 }) => {
   const findSnippet = (snippetId: string) => transcript.find(s => s.id === snippetId);
 
@@ -56,7 +56,8 @@ export const ScreenRemediation: React.FC<ScreenRemediationProps> = ({
   const gradedByQuestionId = new Map<number, GradedAnswer>(gradedAnswers.map(g => [g.questionId, g]));
   const total = questions.length || 1;
   const correctCount = gradedAnswers.filter(g => g.isCorrect && !g.needsReview).length;
-  const reviewCount = gradedAnswers.filter(g => g.needsReview).length;
+  const allCorrect = gradedAnswers.length > 0 && correctCount === questions.length;
+  const reviewCount =gradedAnswers.filter(g => g.needsReview).length;
   const scorePercent = Math.round((correctCount / total) * 1000) / 10;
   const passed = scorePercent >= PASS_THRESHOLD_PERCENT;
 
@@ -255,7 +256,7 @@ export const ScreenRemediation: React.FC<ScreenRemediationProps> = ({
                       {isReview ? '⚠ Lựa chọn của bạn:' : '❌ Lựa chọn của bạn:'}
                     </div>
                     <p className="text-slate-700 font-medium">
-                      {graded.selectedKey}. {selectedOption?.text}
+                      {graded.selectedKey ? `${graded.selectedKey}. ${selectedOption?.text}` : 'Chưa trả lời'}
                     </p>
                     <div className={`mt-2 text-[11px] p-2 rounded ${isReview ? 'text-amber-700 bg-amber-50' : 'text-rose-700 bg-rose-50'}`}>
                       <strong>Nhận xét AI:</strong> {graded.feedback}
@@ -357,22 +358,23 @@ export const ScreenRemediation: React.FC<ScreenRemediationProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={onGoToFallback}
-              className="px-3 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg text-xs font-medium text-amber-800 transition flex items-center gap-1.5 cursor-pointer"
-              title="Xem kịch bản khi transcript không đủ điều kiện tạo quiz an toàn"
-            >
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-              <span>Xem ngoại lệ Fallback (Bước 4)</span>
-            </button>
-
-            <button
-              onClick={onRetakeQuiz}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Làm lại bài kiểm tra</span>
-            </button>
+            {allCorrect ? (
+              <button
+                onClick={onCompleteLesson}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Hoàn thành &amp; qua màn</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                onClick={onRetakeQuiz}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Làm lại bài kiểm tra</span>
+              </button>
+            )}
           </div>
         </div>
       </main>

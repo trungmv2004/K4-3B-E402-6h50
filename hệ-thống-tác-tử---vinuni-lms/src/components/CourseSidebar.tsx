@@ -4,11 +4,13 @@ import { ChevronRight, ChevronDown, Video, Lightbulb, FileText, CheckCircle2, Fl
 
 interface CourseSidebarProps {
   currentScreen: ScreenMode;
+  lectureTitle: string;
   onSelectScreen: (screen: ScreenMode) => void;
 }
 
 export const CourseSidebar: React.FC<CourseSidebarProps> = ({
   currentScreen,
+  lectureTitle,
   onSelectScreen
 }) => {
   const [isVideosOpen, setIsVideosOpen] = useState(true);
@@ -89,7 +91,7 @@ export const CourseSidebar: React.FC<CourseSidebarProps> = ({
                   ) : (
                     <Video className="w-4 h-4 text-blue-600 shrink-0" />
                   )}
-                  <span className="truncate">Từ Chatbot đến AI Agent</span>
+                  <span className="truncate" title={lectureTitle}>{lectureTitle}</span>
                 </div>
                 {currentScreen === 'video-completion' ? (
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded shrink-0">

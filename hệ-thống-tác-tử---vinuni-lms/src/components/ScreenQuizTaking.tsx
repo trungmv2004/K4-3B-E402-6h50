@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { QuizQuestion } from '../types';
-import { useSpeechNarration } from '../hooks/useSpeechNarration';
+import { PublicQuizQuestion } from '../types';
 import {
   Sparkles,
   Clock,
-  Video,
-  Play,
-  Square,
   ArrowLeft,
   ArrowRight,
   Bookmark,
+  AlertTriangle,
   FileText,
   Edit3,
   Paperclip,
@@ -17,8 +14,8 @@ import {
 } from 'lucide-react';
 
 interface ScreenQuizTakingProps {
-  questions: QuizQuestion[];
-  onSubmitQuiz: (answeredQuestions: QuizQuestion[]) => void;
+  questions: PublicQuizQuestion[];
+  onSubmitQuiz: (answeredQuestions: PublicQuizQuestion[]) => void;
   onPrevScreen: () => void;
 }
 
@@ -27,9 +24,8 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
   onSubmitQuiz,
   onPrevScreen
 }) => {
-  const [questions, setQuestions] = useState<QuizQuestion[]>(initialQuestions);
+  const [questions, setQuestions] = useState<PublicQuizQuestion[]>(initialQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const narration = useSpeechNarration();
   const [secondsRemaining, setSecondsRemaining] = useState(582); // 09:42 = 582s
 
   const currentQ = questions[currentIndex];
@@ -54,14 +50,6 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const toggleGroundingAudio = () => {
-    if (narration.isPlaying) {
-      narration.stop();
-    } else {
-      narration.speak([{ id: `question-${currentQ.id}`, text: currentQ.groundingQuote }]);
-    }
-  };
-
   const handleSelectOption = (key: 'A' | 'B' | 'C' | 'D') => {
     setQuestions(prev =>
       prev.map((q, idx) =>
@@ -79,9 +67,20 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
   };
 
   const answeredCount = questions.filter(q => !!q.userAnswer).length;
+  const unansweredIndexes = questions.map((q, idx) => (q.userAnswer ? -1 : idx)).filter(idx => idx >= 0);
+  const [showSubmitWarning, setShowSubmitWarning] = useState(false);
+
+  // Còn câu bỏ trống thì hỏi lại trước khi nộp, vì câu bỏ trống bị tính là sai.
+  const handleSubmitClick = () => {
+    if (unansweredIndexes.length > 0) {
+      setShowSubmitWarning(true);
+      return;
+    }
+    onSubmitQuiz(questions);
+  };
 
   return (
-    <div className="flex-1 flex overflow-hidden">
+    <div className="flex-1 flex overflow-hidden relative">
       {/* Central Quiz Work Area */}
       <main className="flex-1 overflow-y-auto px-6 py-5 bg-[#f8fafc]">
         <div className="max-w-4xl mx-auto space-y-4">
@@ -110,57 +109,6 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
                 <span>Thời gian: {formatTimer(secondsRemaining)}</span>
               </div>
             </div>
-          </div>
-
-          {/* AI Transcript Grounding Source Box */}
-          <div className="bg-gradient-to-r from-amber-50/90 via-amber-50/50 to-orange-50/60 border border-amber-200/90 rounded-xl p-3.5 shadow-xs">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-2.5">
-                <div className="p-1.5 bg-amber-100 text-amber-800 rounded-lg mt-0.5 shrink-0">
-                  <Video className="w-4 h-4" />
-                </div>
-                <div className="text-xs text-slate-700 leading-relaxed">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <span className="font-bold text-amber-900 uppercase tracking-tight">
-                      CĂN CỨ TỪ BÀI GIẢNG VIDEO [{currentQ.groundingTimestamp}]
-                    </span>
-                    <span className="text-[10px] text-amber-700 bg-amber-100/70 px-1.5 py-0.5 rounded font-mono font-medium">
-                      Trùng khớp {currentQ.groundingMatchPercent}%
-                    </span>
-                  </div>
-                  <p className="italic text-slate-600 bg-white/70 p-2 rounded border border-amber-100 text-[11.5px]">
-                    {currentQ.groundingQuote}
-                  </p>
-                </div>
-              </div>
-
-              {/* Audio Listen Button */}
-              <button
-                onClick={toggleGroundingAudio}
-                disabled={!narration.isSupported}
-                className="shrink-0 ml-3 inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-white border border-blue-200 hover:bg-blue-50 rounded-lg shadow-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {narration.isPlaying ? (
-                  <>
-                    <Square className="w-3.5 h-3.5 text-blue-600 fill-blue-600" />
-                    <span>Dừng audio</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-3.5 h-3.5 text-blue-600 fill-blue-600" />
-                    <span>Nghe lại đoạn này</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {narration.isPlaying && (
-              <div className="mt-2.5 pt-2 border-t border-amber-200/60">
-                <div className="flex items-center justify-between text-[10px] text-amber-900 font-mono">
-                  <span>▶ Đang phát giọng đọc AI [{currentQ.groundingTimestamp}]</span>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Question Card */}
@@ -253,7 +201,7 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
                   </button>
                 ) : (
                   <button
-                    onClick={() => onSubmitQuiz(questions)}
+                    onClick={handleSubmitClick}
                     className="inline-flex items-center space-x-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition cursor-pointer"
                   >
                     <span>Nộp bài kiểm tra</span>
@@ -393,6 +341,39 @@ export const ScreenQuizTaking: React.FC<ScreenQuizTakingProps> = ({
           </div>
         </div>
       </aside>
+      {showSubmitWarning && (
+        <div className="absolute inset-0 z-40 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-5 max-w-sm w-full space-y-3">
+            <div className="flex items-center gap-2 text-amber-700">
+              <AlertTriangle className="w-5 h-5" />
+              <h3 className="text-sm font-bold">Bạn còn {unansweredIndexes.length} câu chưa trả lời</h3>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Câu {unansweredIndexes.map(idx => idx + 1).join(', ')} chưa được chọn đáp án. Câu bỏ trống sẽ bị tính là sai.
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                onClick={() => {
+                  setShowSubmitWarning(false);
+                  setCurrentIndex(unansweredIndexes[0]);
+                }}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+              >
+                Quay lại làm tiếp
+              </button>
+              <button
+                onClick={() => {
+                  setShowSubmitWarning(false);
+                  onSubmitQuiz(questions);
+                }}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg cursor-pointer"
+              >
+                Vẫn nộp bài
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

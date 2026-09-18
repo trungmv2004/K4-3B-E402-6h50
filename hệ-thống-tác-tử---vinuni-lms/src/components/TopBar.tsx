@@ -5,6 +5,7 @@ import { Sparkles, ArrowLeft, Send, CheckCircle2, AlertTriangle, FileCheck, Laye
 interface TopBarProps {
   currentScreen: ScreenMode;
   onSelectScreen: (screen: ScreenMode) => void;
+  unlockedScreens: ScreenMode[];
   onOpenAiModal: () => void;
   onOpenFeedbackModal: () => void;
   studentName?: string;
@@ -15,6 +16,7 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({
   currentScreen,
   onSelectScreen,
+  unlockedScreens,
   onOpenAiModal,
   onOpenFeedbackModal,
   studentName,
@@ -148,41 +150,47 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span>Màn 1: Hoàn thành Video & Modal AI</span>
           </button>
 
-          <button
-            onClick={() => onSelectScreen('quiz-taking')}
-            className={`px-2.5 py-1 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${
-              currentScreen === 'quiz-taking'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <FileCheck className="w-3.5 h-3.5 text-blue-500" />
-            <span>Màn 2: Làm trắc nghiệm AI</span>
-          </button>
+          {unlockedScreens.includes('quiz-taking') && (
+            <button
+              onClick={() => onSelectScreen('quiz-taking')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${
+                currentScreen === 'quiz-taking'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              <FileCheck className="w-3.5 h-3.5 text-blue-500" />
+              <span>Màn 2: Làm trắc nghiệm AI</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => onSelectScreen('remediation')}
-            className={`px-2.5 py-1 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${
-              currentScreen === 'remediation'
-                ? 'bg-rose-600 text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-            <span>Màn 3: Chấm điểm & Đối chiếu [03:15]</span>
-          </button>
+          {unlockedScreens.includes('remediation') && (
+            <button
+              onClick={() => onSelectScreen('remediation')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${
+                currentScreen === 'remediation'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+              <span>Màn 3: Chấm điểm & Đối chiếu</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => onSelectScreen('fallback')}
-            className={`px-2.5 py-1 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${
-              currentScreen === 'fallback'
-                ? 'bg-amber-600 text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-            <span>Màn 4: Ngoại lệ an toàn (AI Fallback)</span>
-          </button>
+          {unlockedScreens.includes('fallback') && (
+            <button
+              onClick={() => onSelectScreen('fallback')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${
+                currentScreen === 'fallback'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+              <span>Màn 4: Ngoại lệ an toàn (AI Fallback)</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

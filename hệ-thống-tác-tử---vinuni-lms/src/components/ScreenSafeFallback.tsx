@@ -17,12 +17,14 @@ import {
 
 interface ScreenSafeFallbackProps {
   auditData: FallbackAuditData;
+  lectureTitle: string;
   onUnlockNextLesson: () => void;
   onScanSlides?: () => void;
 }
 
 export const ScreenSafeFallback: React.FC<ScreenSafeFallbackProps> = ({
   auditData,
+  lectureTitle,
   onUnlockNextLesson,
   onScanSlides
 }) => {
@@ -361,7 +363,7 @@ export const ScreenSafeFallback: React.FC<ScreenSafeFallbackProps> = ({
                 <span className="w-4 h-4 rounded-full border-2 border-blue-600 flex items-center justify-center shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
                 </span>
-                <span>3. Từ Chatbot đến AI Agent (Fallback)</span>
+                <span className="truncate">3. {lectureTitle} (Fallback)</span>
               </div>
               <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 text-slate-500">
                 <span className="w-4 h-4 rounded-full border border-slate-300 shrink-0"></span>

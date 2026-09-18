@@ -4,9 +4,9 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ScreenMode, QuizQuestion, GradedAnswer, FallbackAuditData, User } from './types';
+import { ScreenMode, QuizQuestion, PublicQuizQuestion, GradedAnswer, FallbackAuditData, User } from './types';
 import { COURSE_QUESTIONS, FALLBACK_AUDIT_DATA } from './data/courseData';
-import { generateQuiz, gradeAnswer, fetchCurrentUser, logout } from './services/api';
+import { startQuiz, submitQuiz, completeLesson, markLectureViewed, fetchCurrentUser, logout } from './services/api';
 import { TopBar } from './components/TopBar';
 import { CourseSidebar } from './components/CourseSidebar';
 import { ScreenVideoComplete } from './components/ScreenVideoComplete';
@@ -25,14 +25,16 @@ import { Sparkles } from 'lucide-react';
 // mà chưa chạy qua luồng AI thật (video → bắt đầu quiz).
 function buildDemoGradedAnswers(questions: QuizQuestion[]): GradedAnswer[] {
   return questions.map(q => {
-    const selectedKey = q.userAnswer ?? q.correctAnswer;
+    const selectedKey = q.userAnswer ?? null;
     return {
       questionId: q.id,
       selectedKey,
-      isCorrect: selectedKey === q.correctAnswer,
+      isCorrect: selectedKey !== null && selectedKey === q.correctAnswer,
       confidence: q.groundingMatchPercent,
       needsReview: false,
-      feedback: q.aiDiagnosticRemark ?? q.explanation ?? '',
+      feedback: selectedKey === null
+        ? 'Bạn chưa chọn đáp án cho câu hỏi này nên câu bị tính là sai.'
+        : q.aiDiagnosticRemark ?? q.explanation ?? '',
       groundingSnippetId: q.groundingSnippetId ?? '',
       groundingQuote: q.groundingQuote,
       suggestedSnippetIds: [],
@@ -47,10 +49,19 @@ function StudentApp({ user, lecture, onBackToLibrary, onLoggedOut }: {
   onLoggedOut: () => void;
 }) {
   const [currentScreen, setCurrentScreen] = useState<ScreenMode>('video-completion');
+
+  // Ghi nhận học viên đã mở bài giảng này để giảng viên thấy trong báo cáo lớp.
+  useEffect(() => {
+    markLectureViewed(lecture.id).catch(() => {});
+  }, [lecture.id]);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
-  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>(COURSE_QUESTIONS);
+  // Câu hỏi đang làm (không có đáp án) và phiên làm bài do máy chủ giữ; quizId = null là chế độ demo ngoại tuyến.
+  const [quizQuestions, setQuizQuestions] = useState<PublicQuizQuestion[]>(COURSE_QUESTIONS);
+  const [quizId, setQuizId] = useState<string | null>(null);
+  // Câu hỏi kèm đáp án chuẩn và căn cứ — chỉ có sau khi máy chủ chấm bài.
+  const [revealedQuestions, setRevealedQuestions] = useState<QuizQuestion[]>(COURSE_QUESTIONS);
   const [gradedAnswers, setGradedAnswers] = useState<GradedAnswer[]>(() =>
     buildDemoGradedAnswers(COURSE_QUESTIONS)
   );
@@ -60,18 +71,45 @@ function StudentApp({ user, lecture, onBackToLibrary, onLoggedOut }: {
   const [isGrading, setIsGrading] = useState(false);
   const [aiStatusMessage, setAiStatusMessage] = useState<string | null>(null);
 
+  // Các màn chỉ được mở khi học viên đã hoàn thành màn trước (màn 1 → 2 → 3 → 4).
+  const [unlockedScreens, setUnlockedScreens] = useState<ScreenMode[]>(['video-completion']);
+
+  const advanceTo = (screen: ScreenMode) => {
+    setUnlockedScreens(prev => (prev.includes(screen) ? prev : [...prev, screen]));
+    setCurrentScreen(screen);
+  };
+
+  const handleSelectScreen = (screen: ScreenMode) => {
+    if (unlockedScreens.includes(screen)) {
+      setCurrentScreen(screen);
+    } else if (screen === 'quiz-taking' && currentScreen === 'video-completion') {
+      // Nút "Quiz kiểm tra AI" ở thanh bên chính là bước hoàn thành màn 1.
+      handleStartQuiz();
+    }
+  };
+
   const handleStartQuiz = async () => {
-    // Video do giáo viên tải lên đã được sinh quiz sẵn từ trước — không cần gọi AI lại lần nữa.
-    if (lecture.quiz && lecture.quiz.length > 0) {
-      setQuizQuestions(lecture.quiz);
-      setCurrentScreen('quiz-taking');
+    // Giáo viên đã chạy đánh giá căn cứ và video không đủ → miễn thi, không gọi AI lại.
+    if (lecture.bypass) {
+      setFallbackAudit({
+        ...FALLBACK_AUDIT_DATA,
+        wordCount: lecture.bypass.wordCount,
+        evidenceScore: lecture.bypass.evidenceScore,
+        transcriptSample: lecture.transcript.map(s => s.text).join(' '),
+        aiReasoning: `AI Reasoning: ${lecture.bypass.reasoning}`,
+      });
+      advanceTo('fallback');
       return;
     }
 
     setIsGeneratingQuiz(true);
     setAiStatusMessage(null);
     try {
-      const result = await generateQuiz(lecture.chapterTitle, lecture.transcript);
+      const result = await startQuiz(
+        lecture.videoId
+          ? { videoId: lecture.videoId }
+          : { lectureId: lecture.id, chapterTitle: lecture.chapterTitle, transcript: lecture.transcript }
+      );
       if (result.sufficientEvidence === false) {
         setFallbackAudit({
           phase: 'Giai đoạn 3.4',
@@ -86,10 +124,11 @@ function StudentApp({ user, lecture, onBackToLibrary, onLoggedOut }: {
           transcriptSample: result.transcriptSample,
           aiReasoning: `AI Reasoning: ${result.reasoning}`,
         });
-        setCurrentScreen('fallback');
+        advanceTo('fallback');
       } else {
+        setQuizId(result.quizId);
         setQuizQuestions(result.questions);
-        setCurrentScreen('quiz-taking');
+        advanceTo('quiz-taking');
       }
     } catch (err) {
       setAiStatusMessage(
@@ -97,38 +136,51 @@ function StudentApp({ user, lecture, onBackToLibrary, onLoggedOut }: {
           ? `${err.message} Đang dùng bộ câu hỏi demo ngoại tuyến thay thế.`
           : 'Không thể kết nối AI Tutor. Đang dùng bộ câu hỏi demo ngoại tuyến thay thế.'
       );
-      setQuizQuestions(COURSE_QUESTIONS);
-      setCurrentScreen('quiz-taking');
+      setQuizId(null);
+      setQuizQuestions(COURSE_QUESTIONS.map(({ userAnswer, ...q }) => q));
+      advanceTo('quiz-taking');
     } finally {
       setIsGeneratingQuiz(false);
     }
   };
 
-  const handleSubmitQuiz = async (answeredQuestions: QuizQuestion[]) => {
+  const handleSubmitQuiz = async (answeredQuestions: PublicQuizQuestion[]) => {
     setIsGrading(true);
     setAiStatusMessage(null);
     try {
-      const results = await Promise.all(
-        answeredQuestions.map(async (q): Promise<GradedAnswer> => {
-          const selectedKey = q.userAnswer ?? q.correctAnswer;
-          const graded = await gradeAnswer(q, selectedKey, lecture.transcript);
-          return { questionId: q.id, selectedKey, ...graded };
-        })
-      );
+      if (quizId) {
+        // Máy chủ chấm bài rồi mới trả đáp án chuẩn và căn cứ.
+        const graded = await submitQuiz(quizId, answeredQuestions);
+        setRevealedQuestions(graded.questions);
+        setGradedAnswers(graded.results);
+      } else {
+        // Chế độ demo ngoại tuyến: dữ liệu demo tĩnh có sẵn đáp án nên chấm tại chỗ.
+        const answerById = new Map(answeredQuestions.map(q => [q.id, q.userAnswer]));
+        const demo = COURSE_QUESTIONS.map(q => ({ ...q, userAnswer: answerById.get(q.id) }));
+        setRevealedQuestions(demo);
+        setGradedAnswers(buildDemoGradedAnswers(demo));
+      }
       setQuizQuestions(answeredQuestions);
-      setGradedAnswers(results);
+      advanceTo('remediation');
     } catch (err) {
+      // Không chấm được (mất kết nối, phiên hết hạn...) thì giữ học viên ở màn làm bài để nộp lại.
       setAiStatusMessage(
         err instanceof Error
-          ? `${err.message} Đang hiển thị kết quả theo đáp án chuẩn ngoại tuyến.`
-          : 'Không thể chấm bài qua AI lúc này. Đang hiển thị kết quả theo đáp án chuẩn ngoại tuyến.'
+          ? err.message
+          : 'Không thể chấm bài lúc này. Vui lòng thử nộp lại.'
       );
-      setQuizQuestions(answeredQuestions);
-      setGradedAnswers(buildDemoGradedAnswers(answeredQuestions));
     } finally {
       setIsGrading(false);
-      setCurrentScreen('remediation');
     }
+  };
+
+  // Làm lại bài: xoá đáp án đã chọn và cờ "xem lại" của lượt trước để học viên bắt đầu từ bài trắng.
+  const handleRetakeQuiz = () => {
+    setQuizQuestions(prev =>
+      prev.map(({ userAnswer, isFlaggedForReview, ...rest }) => rest)
+    );
+    setAiStatusMessage(null);
+    advanceTo('quiz-taking');
   };
 
   const isBusy = isGeneratingQuiz || isGrading;
@@ -137,7 +189,8 @@ function StudentApp({ user, lecture, onBackToLibrary, onLoggedOut }: {
     <div className="bg-[#f8fafc] text-slate-800 font-sans antialiased h-screen flex flex-col overflow-hidden">
       <TopBar
         currentScreen={currentScreen}
-        onSelectScreen={setCurrentScreen}
+        onSelectScreen={handleSelectScreen}
+        unlockedScreens={unlockedScreens}
         onOpenAiModal={() => setIsAiModalOpen(true)}
         onOpenFeedbackModal={() => setIsFeedbackModalOpen(true)}
         studentName={user.name}
@@ -155,7 +208,11 @@ function StudentApp({ user, lecture, onBackToLibrary, onLoggedOut }: {
       )}
 
       <div className="flex flex-1 overflow-hidden relative">
-        <CourseSidebar currentScreen={currentScreen} onSelectScreen={setCurrentScreen} />
+        <CourseSidebar
+          currentScreen={currentScreen}
+          lectureTitle={lecture.chapterTitle}
+          onSelectScreen={handleSelectScreen}
+        />
 
         {currentScreen === 'video-completion' && (
           <ScreenVideoComplete
@@ -176,18 +233,25 @@ function StudentApp({ user, lecture, onBackToLibrary, onLoggedOut }: {
 
         {currentScreen === 'remediation' && (
           <ScreenRemediation
-            questions={quizQuestions}
+            questions={revealedQuestions}
             gradedAnswers={gradedAnswers}
             transcript={lecture.transcript}
-            onRetakeQuiz={() => setCurrentScreen('quiz-taking')}
-            onGoToFallback={() => setCurrentScreen('fallback')}
+            onRetakeQuiz={handleRetakeQuiz}
+            onCompleteLesson={async () => {
+              await completeLesson(lecture.id).catch(() => {});
+              alert('Chúc mừng! Bạn đã hoàn thành bài học và có thể chọn bài giảng tiếp theo trong thư viện.');
+              onBackToLibrary();
+            }}
           />
         )}
 
         {currentScreen === 'fallback' && (
           <ScreenSafeFallback
             auditData={fallbackAudit}
-            onUnlockNextLesson={() => {
+            lectureTitle={lecture.chapterTitle}
+            onUnlockNextLesson={async () => {
+              // Video giới thiệu được miễn thi thì ghi nhận hoàn thành; bài demo tĩnh sẽ bị máy chủ từ chối và bỏ qua.
+              await completeLesson(lecture.id).catch(() => {});
               alert('Chúc mừng! Bạn đã hoàn thành bài học (Miễn thi an toàn) và có thể quay lại thư viện bài giảng.');
               onBackToLibrary();
             }}
