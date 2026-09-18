@@ -2,7 +2,7 @@
 
 | File | Nội dung |
 |---|---|
-| `golden_set.json` | 20 ca kiểm thử, phân loại theo taxonomy 4 lớp chỗ khó (`spec.md` §5–§6): ① không có căn cứ · ② low-confidence · ③ ngoài phạm vi · ④ đặc thù domain. Mỗi ca có `endpoint`, `input` (đúng request body gửi tới server), và `expected` (tiêu chí tự động đối chiếu kết quả). |
+| `golden_set.json` | 22 ca kiểm thử (20 gốc + 2 bổ sung), phân loại theo taxonomy 4 lớp chỗ khó (`spec.md` §5–§6): ① không có căn cứ · ② low-confidence · ③ ngoài phạm vi · ④ đặc thù domain. Mỗi ca có `endpoint`, `input` (đúng request body gửi tới server), và `expected` (tiêu chí tự động đối chiếu kết quả). 5 ca (C04, C05, C11, C21, C22) có thêm `realWorldReference` trỏ về `turn_id` trong log chat thật `data/vlearn-pack/tutor_turns.csv` — xác nhận mẫu lỗi là có thật trong vận hành, không phải giả định (xem `realWorldEvidenceSource` ở đầu file và `spec.md` §1). |
 | `run_golden_set.ts` | Script chạy toàn bộ 20 ca qua server đang chạy thật (không mock) — đăng nhập, gọi từng endpoint, đối chiếu `expected`, ghi log raw request/response vào `run_log.jsonl`, in bảng PASS/FAIL/OBSERVE. |
 | `run_log.jsonl` | Log thô của lượt chạy gần nhất: request body + raw HTTP response cho từng ca — bằng chứng kỹ thuật để xác minh. |
 | `run_results.md` | Báo cáo tổng hợp: bảng thống kê đạt/thất bại, tỷ lệ %, phân tích nguyên nhân sai lệch. |
