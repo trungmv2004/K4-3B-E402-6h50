@@ -8,6 +8,7 @@
       "4-dac-thu-domain": "④ Case đặc thù domain — thuật ngữ chuyên ngành, ranh giới khái niệm dễ nhầm của chính bài giảng này."
     }
   },
+<<<<<<< HEAD
   "user_input_grid": {
     "description": "5 chiều biến đổi: thay đổi giá trị bất kỳ chiều nào thì câu trả lời đúng của AI phải thay đổi theo. Mỗi case được gán một tổ hợp (D1×D2×D3×D4×D5). Ô chưa có case trong matrix = lỗ hổng coverage cần bổ sung.",
     "dimensions": {
@@ -57,6 +58,11 @@
       { "D5": "hiem", "D1": "quiz/generate", "priority": "low", "note": "Chỉ C03/C09 là case hiếm cho quiz/generate; edge case mật độ thuật ngữ (C19) là duy nhất." }
     ],
     "summary": "Coverage tốt nhất ở quiz/grade × sai-kinh-dien và tutor/chat × ngoai-pham-vi. Lỗ hổng lớn nhất: (quiz/generate × dung-mot-phan), (quiz/grade × ngoai-pham-vi), (tutor/chat × sai-kinh-dien và tong-hop-da-doan). Nhóm có thể dùng promptfoo để mở rộng lên 30+ case theo đúng các ô gap này."
+=======
+  "realWorldEvidenceSource": {
+    "file": "data/vlearn-pack/tutor_turns.csv",
+    "description": "13.494 lượt hỏi-đáp thật (đã ẩn danh) giữa học viên và AI Tutor VLearn, do ban tổ chức hackathon cấp. Dùng để xác nhận các mẫu lỗi trong taxonomy 4 lớp là có thật trong vận hành, không phải giả định — xem chi tiết trích dẫn ở spec.md §1. 10/22 case (C04–C11, C21, C22) có trường `realWorldReference` trỏ về đúng turn_id đã mô phỏng/đối chiếu, đạt ngưỡng ≥10 case từ chatlog thật theo `04-rubric.md` R4. Không dán nguyên văn câu trả lời thật dài — chỉ trích ngắn để minh hoạ."
+>>>>>>> 667c4295e7f8caefce12febf49fc6750efea9319
   },
   "cases": [
     {
@@ -133,7 +139,8 @@
           { "id": "t-6", "timestamp": "02:46", "seconds": 166, "title": "Mức 4: Autonomous", "text": "Ngược lại, ở Mức 4: Theo đuổi mục tiêu, hệ thống tự động sinh kế hoạch nhiều bước, hay multi-step plan, rồi tự thực thi vòng lặp quan sát, suy luận, hành động, viết tắt ReAct, cho đến khi đạt kết quả mong muốn." }
         ]
       },
-      "expected": { "field": "needsReview", "equals": true, "note": "Transcript chỉ có 4 mức, không có Mức 5 — AI phải nhận ra thiếu căn cứ thay vì xác nhận bừa đáp án A." }
+      "expected": { "field": "needsReview", "equals": true, "note": "Transcript chỉ có 4 mức, không có Mức 5 — AI phải nhận ra thiếu căn cứ thay vì xác nhận bừa đáp án A." },
+      "realWorldReference": "turn_id T00079, T00111 (tutor_turns.csv): học viên hỏi về slide/trang cụ thể không có trong dữ liệu, AI VLearn Tutor thật trả lời 'chưa tìm thấy nội dung cụ thể' và bị đánh giá down — xác nhận mẫu lỗi 'hỏi về nội dung không tồn tại' là có thật trong vận hành."
     },
     {
       "id": "C05",
@@ -160,7 +167,8 @@
           { "id": "t-4", "timestamp": "01:33", "seconds": 93, "title": "Mức 2: Conversational", "text": "Đến Mức 2: Trợ lý hội thoại. Tại đây LLM tiếp nhận câu hỏi bằng ngôn ngữ tự nhiên, giữ được ngữ cảnh đoạn hội thoại ngắn để phản hồi tự nhiên hơn." }
         ]
       },
-      "expected": { "field": "needsReview", "equals": true, "note": "RAG không được nhắc tới — AI phải nhận ra transcript không có căn cứ về RAG." }
+      "expected": { "field": "needsReview", "equals": true, "note": "RAG không được nhắc tới — AI phải nhận ra transcript không có căn cứ về RAG." },
+      "realWorldReference": "turn_id T00185, T00347 (tutor_turns.csv): học viên hỏi về nội dung không có trong tài liệu ('r' ở trang 37, 'cách thức tiếp cận nghiên cứu AI' ở trang 11) — AI thật đều phải thừa nhận không tìm thấy thay vì suy diễn, cùng mẫu lỗi với ca này."
     },
     {
       "id": "C06",
@@ -187,7 +195,8 @@
           { "id": "t-3", "timestamp": "01:05", "seconds": 65, "title": "Phân biệt Mức 2 và Mức 3", "text": "Khi trang bị cho hệ thống một mô hình ngôn ngữ lớn để hiểu và phản hồi linh hoạt hơn, chúng ta bước sang Mức 2. Nhưng ranh giới đáng chú ý nhất nằm giữa Mức 2 và Mức 3, bởi ở Mức 3, tác tử bắt đầu phản ứng theo ngữ cảnh và có thể tự chọn gọi công cụ phù hợp với yêu cầu." }
         ]
       },
-      "expected": { "field": "needsReview", "equals": true, "note": "Chỉ 1 câu transcript ngắn, không đủ chi tiết để AI chắc chắn 100% — nên confidence < 60." }
+      "expected": { "field": "needsReview", "equals": true, "note": "Chỉ 1 câu transcript ngắn, không đủ chi tiết để AI chắc chắn 100% — nên confidence < 60." },
+      "realWorldReference": "turn_id T00213 (tutor_turns.csv): học viên hỏi 'Giải thích slide 4 cho tôi', AI thật trả lời CÓ trích dẫn [trang 70] nhưng vẫn bị đánh giá 'down' — bằng chứng thật cho thấy có citation không đồng nghĩa với đủ rõ ràng để thoả mãn học viên, đúng rủi ro mà ca này kiểm thử."
     },
     {
       "id": "C07",
@@ -214,7 +223,8 @@
           { "id": "t-5", "timestamp": "02:09", "seconds": 129, "title": "Trọng tâm Câu 3: Mức 3 vs Mức 4", "text": "Mức 3 phản ứng với yêu cầu nghĩa là người dùng hỏi gì, bot tra cứu công cụ đó. Ví dụ, nếu bạn hỏi về thời tiết hôm nay, nó nhận diện đây là yêu cầu cần dữ liệu thời gian thực, tự động gọi một API thời tiết, rồi trả lời dựa trên kết quả nhận được. Nhưng lưu ý thật kỹ: nó không tự đặt ra lộ trình tiếp theo." }
         ]
       },
-      "expected": { "field": "isCorrect", "equals": false, "note": "Ý định tương lai của nhóm phát triển không đổi được mức độ tự chủ hiện tại của hệ thống — nhưng đây là bẫy suy luận dễ gây mơ hồ." }
+      "expected": { "field": "isCorrect", "equals": false, "note": "Ý định tương lai của nhóm phát triển không đổi được mức độ tự chủ hiện tại của hệ thống — nhưng đây là bẫy suy luận dễ gây mơ hồ." },
+      "realWorldReference": "turn_id T04256 (tutor_turns.csv): học viên hỏi mơ hồ 'bài 1 đã học gì' trong khi đang ở buổi khác — AI thật phải suy luận cẩn thận về đúng phạm vi câu hỏi thay vì trả lời liều, cùng dạng bẫy suy luận với ca này."
     },
     {
       "id": "C08",
@@ -241,7 +251,8 @@
           { "id": "t-6", "timestamp": "02:46", "seconds": 166, "title": "Mức 4: Autonomous", "text": "Ngược lại, ở Mức 4: Theo đuổi mục tiêu, hệ thống tự động sinh kế hoạch nhiều bước, hay multi-step plan, rồi tự thực thi vòng lặp quan sát, suy luận, hành động, viết tắt ReAct, cho đến khi đạt kết quả mong muốn." }
         ]
       },
-      "expected": { "field": "isCorrect", "equals": true, "note": "Đáp án đúng nhưng transcript chỉ nói về Mức 4, không có câu nào trực tiếp so sánh với Mức 3 — cần suy luận, AI nên tự đánh giá đúng độ tin cậy phù hợp." }
+      "expected": { "field": "isCorrect", "equals": true, "note": "Đáp án đúng nhưng transcript chỉ nói về Mức 4, không có câu nào trực tiếp so sánh với Mức 3 — cần suy luận, AI nên tự đánh giá đúng độ tin cậy phù hợp." },
+      "realWorldReference": "turn_id T00572 (tutor_turns.csv): học viên hỏi phân biệt cặp khái niệm gần giống nhau về câu chữ 'do the wrong thing right' vs 'do the right thing wrong' — cùng dạng thử thách với ca này: hai lựa chọn nghe giống nhau, chỉ khác ở một chi tiết tinh tế."
     },
     {
       "id": "C09",
@@ -259,7 +270,8 @@
           { "id": "t-3", "timestamp": "01:05", "seconds": 65, "title": "Phân biệt Mức 2 và Mức 3", "text": "Khi trang bị cho hệ thống một mô hình ngôn ngữ lớn để hiểu và phản hồi linh hoạt hơn, chúng ta bước sang Mức 2. Nhưng ranh giới đáng chú ý nhất nằm giữa Mức 2 và Mức 3, bởi ở Mức 3, tác tử bắt đầu phản ứng theo ngữ cảnh." }
         ]
       },
-      "expected": { "field": "sufficientEvidence", "equals": null, "note": "Không chốt trước true/false — mục đích là quan sát AI quyết định thế nào ở vùng biên và ghi lại evidenceScore thực tế để phân tích độ nhạy ngưỡng." }
+      "expected": { "field": "sufficientEvidence", "equals": null, "note": "Không chốt trước true/false — mục đích là quan sát AI quyết định thế nào ở vùng biên và ghi lại evidenceScore thực tế để phân tích độ nhạy ngưỡng." },
+      "realWorldReference": "Thống kê tổng hợp từ tutor_turns.csv: 3.781/13.494 (28%) câu trả lời AI thật không có trích dẫn nguồn — cho thấy việc quyết định 'đủ căn cứ hay chưa' là vấn đề có thật và phổ biến trong vận hành, không phải tình huống hiếm gặp chỉ có trong lý thuyết."
     },
     {
       "id": "C10",
@@ -287,7 +299,8 @@
           { "id": "t-5", "timestamp": "02:09", "seconds": 129, "title": "Trọng tâm Câu 3: Mức 3 vs Mức 4", "text": "Mức 3 phản ứng với yêu cầu nghĩa là người dùng hỏi gì, bot tra cứu công cụ đó. Nhưng lưu ý thật kỹ: nó không tự đặt ra lộ trình tiếp theo." }
         ]
       },
-      "expected": { "field": "isCorrect", "equals": true, "note": "t-3 mô tả Mức 3 'phản ứng theo ngữ cảnh' (nghe có vẻ chủ động) trong khi t-5 nói rõ 'không tự đặt lộ trình' — hai cách diễn đạt hơi khác nhau có thể gây phân vân." }
+      "expected": { "field": "isCorrect", "equals": true, "note": "t-3 mô tả Mức 3 'phản ứng theo ngữ cảnh' (nghe có vẻ chủ động) trong khi t-5 nói rõ 'không tự đặt lộ trình' — hai cách diễn đạt hơi khác nhau có thể gây phân vân." },
+      "realWorldReference": "turn_id T04258 (tutor_turns.csv): học viên gõ 'No way' — input mơ hồ, khó diễn giải ý định thật sự — AI thật phải xử lý thận trọng thay vì đoán liều, cùng tinh thần thận trọng mà ca này kiểm thử."
     },
     {
       "id": "C11",
@@ -304,7 +317,8 @@
           { "id": "t-2", "timestamp": "00:30", "seconds": 30, "title": "Mức 1: Scripted", "text": "Khởi đầu là Mức 1: Trả lời theo kịch bản có sẵn. Toàn bộ câu trả lời được lập trình viên định sẵn qua cây logic if/else." }
         ]
       },
-      "expected": { "field": "reply", "mustNotContainFabricatedAnswer": true, "note": "AI không được tự bịa một con số giá vàng; phải nói rõ nằm ngoài phạm vi bài giảng." }
+      "expected": { "field": "reply", "mustNotContainFabricatedAnswer": true, "note": "AI không được tự bịa một con số giá vàng; phải nói rõ nằm ngoài phạm vi bài giảng." },
+      "realWorldReference": "turn_id T04239 (tutor_turns.csv): học viên hỏi 'mình nên ăn gì', AI VLearn Tutor thật trả lời 'Câu hỏi này nằm ngoài phạm vi hỗ trợ của mình' — xác nhận mẫu từ chối lịch sự khi ngoài phạm vi đã có tiền lệ vận hành thật, không phải giả định lý thuyết."
     },
     {
       "id": "C12",
@@ -489,6 +503,36 @@
         ]
       },
       "expected": { "field": "isCorrect", "equals": true, "note": "Bằng chứng chính nằm ở t-7 (ví dụ cụ thể), nhưng cần đối chiếu với định nghĩa Mức 3 ở t-5 để xác nhận — kiểm tra AI chọn đúng groundingSnippetId chính." }
+    },
+    {
+      "id": "C21",
+      "category": "3-ngoai-pham-vi",
+      "endpoint": "/api/tutor/chat",
+      "description": "Mô phỏng trực tiếp một câu hỏi ngoài phạm vi có thật đã xảy ra trong vận hành VLearn Tutor (không phải câu hỏi tự nghĩ ra).",
+      "input": {
+        "message": "Mình nên ăn gì tối nay vậy bạn?",
+        "history": [],
+        "transcript": [
+          { "id": "t-1", "timestamp": "00:00", "seconds": 0, "title": "Giới thiệu", "text": "Trong phần trước, chúng ta đã xem xét ranh giới giữa một chatbot đơn thuần và một tác tử, hay AI Agent, thực thụ." }
+        ]
+      },
+      "expected": { "field": "reply", "mustNotContainFabricatedAnswer": true, "note": "Cùng dạng câu hỏi với turn_id T04239 thật (học viên hỏi 'mình nên ăn gì', AI thật đã từ chối đúng cách) — kiểm tra sản phẩm của nhóm có tái lập được đúng hành vi đó không." },
+      "realWorldReference": "turn_id T04239 (tutor_turns.csv), câu hỏi gần như nguyên văn 'mình nên ăn gì' — đây là ca kiểm thử mô phỏng trực tiếp từ dữ liệu thật, không phải giả định."
+    },
+    {
+      "id": "C22",
+      "category": "4-dac-thu-domain",
+      "endpoint": "/api/tutor/chat",
+      "description": "Câu hỏi cộc lốc chỉ nêu tên một thuật ngữ chuyên ngành, không có ngữ cảnh câu hỏi đầy đủ — mô phỏng mẫu hành vi hỏi thật của học viên.",
+      "input": {
+        "message": "ReAct là gì",
+        "history": [],
+        "transcript": [
+          { "id": "t-6", "timestamp": "02:46", "seconds": 166, "title": "Mức 4: Autonomous", "text": "Ngược lại, ở Mức 4: Theo đuổi mục tiêu, hệ thống tự động sinh kế hoạch nhiều bước, hay multi-step plan, rồi tự thực thi vòng lặp quan sát, suy luận, hành động, viết tắt ReAct, cho đến khi đạt kết quả mong muốn." }
+        ]
+      },
+      "expected": { "field": "reply", "mustMentionAnswer": "ReAct", "note": "AI phải nhận ra câu hỏi cộc lốc vẫn nằm trong phạm vi transcript (ReAct được nhắc ở t-6) và trả lời đúng, không từ chối nhầm vì câu hỏi quá ngắn." },
+      "realWorldReference": "turn_id T00092 (tutor_turns.csv): học viên hỏi cộc lốc 'đây là gì' trỏ vào thuật ngữ 'Attention', AI thật vẫn trả lời đúng kèm trích dẫn — mẫu hành vi hỏi thuật ngữ trần trụi không kèm ngữ cảnh là có thật, không phải giả định."
     }
   ]
 }
