@@ -1,3 +1,19 @@
+# User Testing Log
+
+## 1. Mục tiêu Validation
+
+Mục tiêu của buổi validation là kiểm tra khả năng sử dụng và mức độ hiểu của người dùng đối với prototype VLearn AI Tutor, tập trung vào các giả định chính:
+
+* Người học hiểu lý do phải xem hết video trước khi làm bài kiểm tra.
+* Người học biết cách xem lại video/transcript khi trả lời sai.
+* Evidence từ bài giảng giúp tăng độ tin cậy đối với kết quả AI.
+* Người học hiểu các cảnh báo liên quan đến độ tự tin của AI.
+* Người học hiểu cách AI Tutor xử lý câu hỏi ngoài phạm vi bài giảng.
+* Người học có thể hoàn thành workflow mà không bị mất phương hướng.
+* Người học hiểu được giá trị chính của sản phẩm sau một lần sử dụng.
+
+---
+
 ## 2. Đối tượng tham gia Validation
 
 Quá trình validation được thực hiện theo hai hình thức:
@@ -13,10 +29,12 @@ Ngoài ra, nhóm thu thập thêm phản hồi định lượng từ 03 người
 
 ## 3. User Testing Log
 
-| Người thử | Nhiệm vụ giao                                                                                           | Điểm tắc nghẽn                                                                                                                                  | Trích dẫn nguyên văn               | Quyết định xử lý của nhóm                                                                                     |
-| --------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| User 01   | Xem video → hoàn thành video → mở Quiz → trả lời câu hỏi → xem feedback AI → xem lại nội dung liên quan | Người dùng có thời điểm chưa biết cần bấm nút nào tiếp theo sau khi nhận feedback từ AI                                                         | [Điền câu nói thực tế của User 01] | Làm nổi bật CTA chính sau mỗi trạng thái, ví dụ “Xem lại đoạn liên quan” hoặc “Thử lại câu hỏi”               |
-| User 02   | Sử dụng AI Tutor → hỏi câu trong bài → hỏi câu ngoài phạm vi bài giảng → quan sát AI Confidence         | Người dùng chưa hiểu rõ ý nghĩa thông báo “AI CHƯA ĐỦ TỰ TIN — CẦN TỰ KIỂM CHỨNG” và chưa hoàn toàn hiểu lý do AI từ chối câu hỏi ngoài phạm vi | [Điền câu nói thực tế của User 02] | Viết lại cảnh báo AI Confidence và giải thích rõ lý do AI Tutor giới hạn câu trả lời trong nội dung bài giảng |
+| Người thử | Nhiệm vụ giao | Điểm tắc nghẽn           | Quyết định xử lý của nhóm     |
+
+| Nguyễn Thành Nam -02694   | Xem video → hoàn thành video → mở Quiz → trả lời câu hỏi → xem feedback AI → xem lại nội dung liên quan | Người dùng có thời điểm chưa biết cần bấm nút nào tiếp theo sau khi nhận feedback từ AI                                                         | Làm nổi bật CTA chính sau mỗi trạng thái, ví dụ “Xem lại đoạn liên quan” hoặc “Thử lại câu hỏi”               |
+
+
+| Nguyễn Minh Quân-02490  | Sử dụng AI Tutor → hỏi câu trong bài → hỏi câu ngoài phạm vi bài giảng → quan sát AI Confidence         | Người dùng chưa hiểu rõ ý nghĩa thông báo “AI CHƯA ĐỦ TỰ TIN — CẦN TỰ KIỂM CHỨNG” và chưa hoàn toàn hiểu lý do AI từ chối câu hỏi ngoài phạm vi | Viết lại cảnh báo AI Confidence và giải thích rõ lý do AI Tutor giới hạn câu trả lời trong nội dung bài giảng |
 
 ---
 
